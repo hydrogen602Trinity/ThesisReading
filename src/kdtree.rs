@@ -98,8 +98,16 @@ impl Tree {
         }
         else {
             print!("points = ");
+            let mut i = 0;
             for v in &n.values {
-                print!("{}, ", v);
+                if i >= n.value_count {
+                    break;
+                }
+                if v < &10. {
+                    print!("0");
+                }
+                print!("{:0.2}, ", v);
+                i += 1;
             }
             println!("");
         }
