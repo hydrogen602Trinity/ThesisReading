@@ -1,54 +1,29 @@
-
-pub fn testf() {
-    println!("yeet");
-}
-
-#[derive(Debug)]
-pub enum Dimensions {
-    X,
-    Y,
-    Z,
-    VX,
-    VY,
-    VZ
-}
+use crate::kdpoint::{Dimensions, KDPoint};
+ 
 
 // const DIMS: [Dimensions; 6] = [Dimensions::X, Dimensions::Y, Dimensions::Z, Dimensions::VX, Dimensions::VY, Dimensions::VZ];
 
-pub struct Node {
-    left: Option<Box<Node>>,
-    right: Option<Box<Node>>,
+pub struct Node<T> {
+    left: Option<Box<Node<T>>>,
+    right: Option<Box<Node<T>>>,
     split_direction: Dimensions,
     split_value: f64,
-    values: [f64; 8],
+    values: [T; 8],
     value_count: i32
 }
 
-pub struct Tree {
-    pub root: Option<Box<Node>>,
+pub struct Tree<T: KDPoint> {
+    pub root: Option<Box<Node<T>>>,
     pub dims: Vec<Dimensions>
 }
 
-// trait KDPoint {
-//     fn spread_in_dim(&self, dim: &Dimensions) -> f64;
-//     fn compute_median_in_dim(&self, dim: &Dimensions) -> f64;
-//     fn divide_by_value_in_dim_first(&self, mid: f64, dim: &Dimensions) -> Self;
-//     fn divide_by_value_in_dim_second(&self, mid: f64, dim: &Dimensions) -> Self;
-// }
-
-// impl KDPoint for [f64] {
-//     fn spread_in_dim(&self, dim: &Dimensions) -> f64 {
-
-//     }
-// }
-
-impl Tree {
-    pub fn new(dims: Vec<Dimensions>, points: &mut[f64]) -> Tree {
+impl<T: KDPoint> Tree<T> {
+    pub fn new(dims: Vec<Dimensions>, points: &mut [T]) -> Tree<T> {
         let root = Tree::construct_level(&dims, points);
         Tree { root: root, dims: dims }
     }
 
-    fn construct_level(dims: &Vec<Dimensions>, points: &mut[f64]) -> Option<Box<Node>> {
+    fn construct_level(dims: &Vec<Dimensions>, points: &mut[T]) -> Option<Box<Node<T>>> {
         let len = points.len();
         if len == 0 {
             return None;
@@ -57,7 +32,7 @@ impl Tree {
         let split_direction = Dimensions::X;
 
         if len <= 8 {
-            let mut values: [f64; 8] = [0.; 8];
+            let mut values: [T; 8] = [T::ZERO; 8];
             let slice = &mut values[..len];
             slice.copy_from_slice(points);
             Some(Box::new(Node { 
@@ -70,14 +45,14 @@ impl Tree {
             }))
         }
         else {
-            let values: [f64; 8] = [0.; 8];
-            points.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-        
+            let values: [T; 8] = [T::ZERO; 8];
+            points.sort_unstable_by(|a, b| a.cmp_on_dim(b, &split_direction));
+
             let left = Tree::construct_level(dims, &mut points[..(len/2)]);
 
             let right = Tree::construct_level(dims, &mut points[(len/2)..]);
 
-            let median = points[(points.len()/2)];
+            let median = T::get_value_in_dim(points, len/2, &split_direction);  //points[(points.len()/2)];
 
             Some(Box::new(Node { 
                 left: left, 
@@ -97,7 +72,7 @@ impl Tree {
         }, Some(0));
     }
 
-    fn printer_helper(n: &Node, depth: Option<i32>) -> () {
+    fn printer_helper(n: &Node<T>, depth: Option<i32>) -> () {
         let tabs = match depth {
             None => 0,
             Some(e) => e
@@ -124,10 +99,7 @@ impl Tree {
                 if i >= n.value_count {
                     break;
                 }
-                if v < &10. {
-                    print!("0");
-                }
-                print!("{:0.2}, ", v);
+                v.print();
                 i += 1;
             }
             println!("");
