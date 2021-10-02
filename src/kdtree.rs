@@ -3,6 +3,7 @@ pub fn testf() {
     println!("yeet");
 }
 
+#[derive(Debug)]
 pub enum Dimensions {
     X,
     Y,
@@ -25,8 +26,21 @@ pub struct Node {
 
 pub struct Tree {
     pub root: Option<Box<Node>>,
-    pub dims: Vec<Dimensions> //&[Dimensions]
+    pub dims: Vec<Dimensions>
 }
+
+// trait KDPoint {
+//     fn spread_in_dim(&self, dim: &Dimensions) -> f64;
+//     fn compute_median_in_dim(&self, dim: &Dimensions) -> f64;
+//     fn divide_by_value_in_dim_first(&self, mid: f64, dim: &Dimensions) -> Self;
+//     fn divide_by_value_in_dim_second(&self, mid: f64, dim: &Dimensions) -> Self;
+// }
+
+// impl KDPoint for [f64] {
+//     fn spread_in_dim(&self, dim: &Dimensions) -> f64 {
+
+//     }
+// }
 
 impl Tree {
     pub fn new(dims: Vec<Dimensions>, points: &mut[f64]) -> Tree {
@@ -41,7 +55,7 @@ impl Tree {
         }
         
         let split_direction = Dimensions::X;
-        
+
         if len <= 8 {
             let mut values: [f64; 8] = [0.; 8];
             let slice = &mut values[..len];
@@ -76,7 +90,14 @@ impl Tree {
         }
     }
 
-    pub fn printer(n: &Node, depth: Option<i32>) -> () {
+    pub fn printer(&self) -> () {
+        Tree::printer_helper(match &self.root {
+            Some(e) => e,
+            None => panic!("oi")
+        }, Some(0));
+    }
+
+    fn printer_helper(n: &Node, depth: Option<i32>) -> () {
         let tabs = match depth {
             None => 0,
             Some(e) => e
@@ -86,14 +107,14 @@ impl Tree {
             print!("  ");
         }
         if n.value_count == 0 {
-            println!("{}", n.split_value);
+            println!("{:?} = {}", n.split_direction, n.split_value);
             match &n.left {
                 None => (),
-                Some(x) => Tree::printer(x, Some(tabs+1))
+                Some(x) => Tree::printer_helper(x, Some(tabs+1))
             };
             match &n.right {
                 None => (),
-                Some(x) => Tree::printer(x, Some(tabs+1))
+                Some(x) => Tree::printer_helper(x, Some(tabs+1))
             };
         }
         else {
