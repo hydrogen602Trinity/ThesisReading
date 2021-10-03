@@ -1,5 +1,6 @@
 use crate::kdpoint::{Dimensions, KDPoint};
- 
+
+const NODE_VALUE_COUNT: usize = 8;//13;
 
 // const DIMS: [Dimensions; 6] = [Dimensions::X, Dimensions::Y, Dimensions::Z, Dimensions::VX, Dimensions::VY, Dimensions::VZ];
 
@@ -8,7 +9,7 @@ pub struct Node<T> {
     right: Option<Box<Node<T>>>,
     split_direction: Dimensions,
     split_value: f64,
-    values: [T; 8],
+    values: [T; NODE_VALUE_COUNT],
     value_count: i32
 }
 
@@ -45,8 +46,8 @@ impl<T: KDPoint> Tree<T> {
             best_split_direction
         };
 
-        if len <= 8 {
-            let mut values: [T; 8] = [T::ZERO; 8];
+        if len <= NODE_VALUE_COUNT {
+            let mut values: [T; NODE_VALUE_COUNT] = [T::ZERO; NODE_VALUE_COUNT];
             let slice = &mut values[..len];
             slice.copy_from_slice(points);
             Some(Box::new(Node { 
@@ -59,14 +60,14 @@ impl<T: KDPoint> Tree<T> {
             }))
         }
         else {
-            let values: [T; 8] = [T::ZERO; 8];
+            let values: [T; NODE_VALUE_COUNT] = [T::ZERO; NODE_VALUE_COUNT];
             points.sort_unstable_by(|a, b| a.cmp_on_dim(b, &split_direction));
 
-            let left = Tree::construct_level(dims, &mut points[..(len/2)]);
-
-            let right = Tree::construct_level(dims, &mut points[(len/2)..]);
-
             let median = T::get_value_in_dim(points, len/2, &split_direction);  //points[(points.len()/2)];
+            
+            let (first, second) = points.split_at_mut(len/2);
+            let left = Tree::construct_level(dims, first);
+            let right = Tree::construct_level(dims, second);
 
             Some(Box::new(Node { 
                 left: left, 
@@ -92,21 +93,24 @@ impl<T: KDPoint> Tree<T> {
             Some(e) => e
         };
 
-        for _ in 0..tabs {
-            print!("  ");
-        }
         if n.value_count == 0 {
-            println!("{:?} = {}", n.split_direction, n.split_value);
             match &n.left {
                 None => (),
                 Some(x) => Tree::printer_helper(x, Some(tabs+1))
             };
+            for _ in 0..tabs {
+                print!("  ");
+            }
+            println!("{:?} = {}", n.split_direction, n.split_value);
             match &n.right {
                 None => (),
                 Some(x) => Tree::printer_helper(x, Some(tabs+1))
             };
         }
         else {
+            for _ in 0..tabs {
+                print!("  ");
+            }
             print!("points = ");
             let mut i = 0;
             for v in &n.values {
@@ -114,6 +118,7 @@ impl<T: KDPoint> Tree<T> {
                     break;
                 }
                 v.print();
+                print!(", ");
                 i += 1;
             }
             println!("");
