@@ -18,7 +18,8 @@ pub struct Tree<T: KDPoint> {
 }
 
 impl<T: KDPoint> Tree<T> {
-    pub fn new(dims: Vec<Dimensions>, points: &mut [T]) -> Tree<T> {
+    pub fn new(points: &mut [T]) -> Tree<T> {
+        let dims = T::all_axis();
         let root = Tree::construct_level(&dims, points);
         Tree { root: root, dims: dims }
     }
@@ -29,7 +30,20 @@ impl<T: KDPoint> Tree<T> {
             return None;
         }
         
-        let split_direction = Dimensions::X;
+        let split_direction = *{
+            let mut best_split_direction = &dims[0];
+            let mut best_value = 0.;
+
+            for d in dims {
+                let x = T::spread_in_dim(points, d);
+                if x > best_value {
+                    best_value = x;
+                    best_split_direction = d;
+                }
+            }
+
+            best_split_direction
+        };
 
         if len <= 8 {
             let mut values: [T; 8] = [T::ZERO; 8];

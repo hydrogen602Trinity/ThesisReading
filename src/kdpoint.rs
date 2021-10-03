@@ -1,5 +1,5 @@
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Dimensions {
     X,
     Y,
@@ -21,6 +21,8 @@ pub trait KDPoint: Copy {
     fn print(&self);
 
     const ZERO: Self;
+
+    fn all_axis() -> Vec<Dimensions>;
 }
 
 impl KDPoint for f64 {
@@ -67,4 +69,5 @@ impl KDPoint for f64 {
     }
 
     const ZERO: Self = 0.;
+    fn all_axis() -> Vec<Dimensions> { vec!(Dimensions::X) }
 }
