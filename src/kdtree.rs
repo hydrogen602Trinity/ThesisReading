@@ -10,7 +10,11 @@ pub struct Node<T> {
     split_direction: Dimensions,
     split_value: f64,
     values: [T; NODE_VALUE_COUNT],
-    value_count: i32
+    value_count: i32,
+    max_radius: f64,
+    com: (f64, f64, f64),
+    mass: f64
+    // store max radius and com + its loc
 }
 
 pub struct Tree<T: KDPoint> {
@@ -31,38 +35,48 @@ impl<T: KDPoint> Tree<T> {
             return None;
         }
         
-        let split_direction = *{
-            let mut best_split_direction = &dims[0];
-            let mut best_value = 0.;
-
-            for d in dims {
-                let x = T::spread_in_dim(points, d);
-                if x > best_value {
-                    best_value = x;
-                    best_split_direction = d;
-                }
-            }
-
-            best_split_direction
-        };
+        
 
         if len <= NODE_VALUE_COUNT {
             let mut values: [T; NODE_VALUE_COUNT] = [T::ZERO; NODE_VALUE_COUNT];
             let slice = &mut values[..len];
             slice.copy_from_slice(points);
+            let max_radius = values.iter().map(|x| x.get_radius()).fold(0., |m, a| if a.get_radius() > m { a } else { m });
+            let mass: f64 = values.iter().map(|x| x.get_mass()).sum();
             Some(Box::new(Node { 
                 left: None, 
                 right: None, 
-                split_direction: split_direction, 
+                split_direction: Dimensions::X, 
                 split_value: 0.,
                 values: values,
-                value_count: len as i32
+                value_count: len as i32,
+                max_radius: max_radius,
+                com: KDPoint::compute_com(points),
+                mass: mass
             }))
         }
         else {
+            let split_direction = *{
+                let mut best_split_direction = &dims[0];
+                let mut best_value = 0.;
+    
+                for d in dims {
+                    let x = T::spread_in_dim(points, d);
+                    if x > best_value {
+                        best_value = x;
+                        best_split_direction = d;
+                    }
+                }
+    
+                best_split_direction
+            };
+
             let values: [T; NODE_VALUE_COUNT] = [T::ZERO; NODE_VALUE_COUNT];
             points.sort_unstable_by(|a, b| a.cmp_on_dim(b, &split_direction));
 
+            let max_radius = points.iter().map(|x| x.get_radius()).fold(0., |m, a| if a.get_radius() > m { a } else { m });
+            let mass: f64 = points.iter().map(|x| x.get_mass()).sum();
+            
             let median = T::get_value_in_dim(points, len/2, &split_direction);  //points[(points.len()/2)];
             
             let (first, second) = points.split_at_mut(len/2);
@@ -75,7 +89,10 @@ impl<T: KDPoint> Tree<T> {
                 split_direction: split_direction, 
                 split_value: median,
                 values: values,
-                value_count: 0
+                value_count: 0,
+                max_radius: max_radius,
+                com: KDPoint::compute_com(points),
+                mass: mass
             }))
         }
     }
