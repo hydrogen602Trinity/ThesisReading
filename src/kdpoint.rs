@@ -164,36 +164,96 @@ impl KDPoint for (f64, f64) {
     fn get_radius(&self) -> f64 { 0. }
 }
 
-// #[derive(Debug, PartialEq, Copy, Clone)]
-// struct PhysicsPoint3D {
-//     x: f64,
-//     y: f64,
-//     z: f64,
-//     vx: f64,
-//     vy: f64,
-//     vz: f64,
-//     m: f64,
-//     r: f64
-// }
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct PhysicsPoint3D {
+    x: f64,
+    y: f64,
+    z: f64,
+    vx: f64,
+    vy: f64,
+    vz: f64,
+    m: f64,
+    r: f64
+}
 
-// impl KDPoint for PhysicsPoint3D {
-//     fn spread_in_dim(data: &[Self], dim: &Dimensions) -> f64;
-//     // fn compute_median_in_dim(&mut self, dim: Dimensions) -> f64;
-//     // fn split_on_dim(data: &mut [Self], dim: Dimensions) -> (&mut [Self], &mut [Self], f64);
+impl PhysicsPoint3D {
+    pub fn new(x: f64, y: f64, z: f64, vx: f64, vy: f64, vz: f64, m: f64, r: f64) -> PhysicsPoint3D {
+        PhysicsPoint3D { x, y, z, vx, vy, vz, m, r }
+    }
+}
 
-//     fn cmp_on_dim(&self, other: &Self, dim: &Dimensions) -> std::cmp::Ordering;
+impl KDPoint for PhysicsPoint3D {
+    fn spread_in_dim(data: &[Self], dim: &Dimensions) -> f64 {
+        let selector: fn(&PhysicsPoint3D) -> f64 = match dim {
+            Dimensions::X => {
+                |pt| pt.x
+            },
+            Dimensions::Y => {
+                |pt| pt.y
+            },
+            Dimensions::Z => {
+                |pt| pt.z
+            },
+            _ => panic!("This Tree is 3D")
+        };
 
-//     fn get_value_in_dim(data: &[Self], index: usize, dim: &Dimensions) -> f64;
+        let min = data.iter().map(selector).fold(f64::INFINITY, |a, b| if a < b { a } else { b });
+        let max = data.iter().map(selector).fold(f64::NEG_INFINITY, |a, b| if a > b { a } else { b });
+        max - min
+    }
 
-//     fn compute_com(data: &[Self]) -> (f64, f64, f64);
+    fn cmp_on_dim(&self, other: &Self, dim: &Dimensions) -> std::cmp::Ordering {
+        let (s, o) = match dim {
+            Dimensions::X => (self.x, other.x),
+            Dimensions::Y => (self.y, other.y),
+            Dimensions::Z => (self.z, other.z),
+            _ => panic!("This Tree is 3D")
+        };
 
-//     fn print(&self);
+        if s < o {
+            std::cmp::Ordering::Less
+        }
+        else if s > o {
+            std::cmp::Ordering::Greater
+        }
+        else {
+            std::cmp::Ordering::Equal
+        }
+    }
 
-//     const ZERO: Self;
+    fn get_value_in_dim(data: &[Self], index: usize, dim: &Dimensions) -> f64 {
+        match dim {
+            Dimensions::X => data[index].x,
+            Dimensions::Y => data[index].y,
+            Dimensions::Z => data[index].z,
+            _ => panic!("This Tree is 3D")
+        }
+    }
 
-//     fn all_axis() -> Vec<Dimensions>;
+    fn compute_com(data: &[Self]) -> (f64, f64, f64) {
+        let total_mass: f64 = data.iter().map(|pt| pt.m).sum();
+        let avg_x = data.iter().map(|pt| pt.x * pt.m).sum::<f64>() / total_mass;
+        let avg_y = data.iter().map(|pt| pt.y * pt.m).sum::<f64>() / total_mass;
+        let avg_z = data.iter().map(|pt| pt.z * pt.m).sum::<f64>() / total_mass;
 
-//     fn get_radius(&self) -> f64;
+        (avg_x, avg_y, avg_z)
+    }
 
-//     fn get_mass(&self) -> f64;
-// }
+    fn print(&self) {
+        print!("<{:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2}>", self.x, self.y, self.z, self.vx, self.vy, self.vz);
+    }
+
+    const ZERO: Self = PhysicsPoint3D { x: 0., y: 0., z: 0., vx: 0., vy: 0., vz: 0., m: 0., r: 0. };
+
+    fn all_axis() -> Vec<Dimensions> {
+        vec![Dimensions::X, Dimensions::Y, Dimensions::Z]
+    }
+
+    fn get_radius(&self) -> f64 {
+        self.r
+    }
+
+    fn get_mass(&self) -> f64 {
+        self.m
+    }
+}
