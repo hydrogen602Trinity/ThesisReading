@@ -30,6 +30,11 @@ pub trait KDPoint: Copy {
 
     fn get_mass(&self) -> f64;
 
+    /**
+     * Compute the acceleration that self will feel from other
+     */
+    fn compute_acceleration_from(&self, other: &Self) -> (f64, f64, f64);
+
     // compute center of mass
     // get max radius in node
 
@@ -38,6 +43,7 @@ pub trait KDPoint: Copy {
     // Particle -> 8 doubles (x, y, z, vx, vy, vz, m, r)
 }
 
+/*
 impl KDPoint for f64 {
     fn spread_in_dim(data: &[Self], dim: &Dimensions) -> f64 {
         if dim != &Dimensions::X {
@@ -88,6 +94,8 @@ impl KDPoint for f64 {
 
     fn get_mass(&self) -> f64 { 0. }
     fn get_radius(&self) -> f64 { 0. }
+
+    
 }
 
 impl KDPoint for (f64, f64) {
@@ -163,6 +171,7 @@ impl KDPoint for (f64, f64) {
     fn get_mass(&self) -> f64 { 0. }
     fn get_radius(&self) -> f64 { 0. }
 }
+*/
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct PhysicsPoint3D {
@@ -255,5 +264,22 @@ impl KDPoint for PhysicsPoint3D {
 
     fn get_mass(&self) -> f64 {
         self.m
+    }
+
+    fn compute_acceleration_from(&self, other: &Self) -> (f64, f64, f64) {
+        // F = G m1 m2 / r^2
+        // a m1 = G m1 m2 / r^2
+        // a = G m2 / r^2
+        const G: f64 = 1.;
+
+        let sq = |x| x*x;
+
+        let r = (sq(self.x - other.x) + sq(self.y - other.y) + sq(self.z - other.z)).sqrt();
+
+        let mag = G * other.m / sq(r);
+
+        let point_vec = ((other.x - self.x) / r, (other.y - self.y) / r, (other.z - self.z) / r);
+
+        (point_vec.0 * mag, point_vec.1 * mag, point_vec.2 * mag)
     }
 }

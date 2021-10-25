@@ -1,6 +1,7 @@
 use crate::kdpoint::{Dimensions, KDPoint};
 
 const NODE_VALUE_COUNT: usize = 8;//13;
+const OPENING_ANGLE_RATIO: f64 = 100.; // about 0.5 degree
 
 // const DIMS: [Dimensions; 6] = [Dimensions::X, Dimensions::Y, Dimensions::Z, Dimensions::VX, Dimensions::VY, Dimensions::VZ];
 
@@ -13,8 +14,11 @@ pub struct Node<T> {
     value_count: i32,
     max_radius: f64,
     com: (f64, f64, f64),
-    mass: f64
-    // store max radius and com + its loc
+    mass: f64,
+    width: f64
+    // store width, max spread
+    // opening angle size/distance
+
 }
 
 pub struct Tree<T: KDPoint> {
@@ -29,6 +33,21 @@ impl<T: KDPoint> Tree<T> {
         Tree { root: root, dims: dims }
     }
 
+    fn get_max_dim_spread(dims: &Vec<Dimensions>, points: &mut[T]) -> (Dimensions, f64) {
+        let mut best_split_direction = &dims[0];
+                let mut best_value = 0.;
+    
+                for d in dims {
+                    let x = T::spread_in_dim(points, d);
+                    if x > best_value {
+                        best_value = x;
+                        best_split_direction = d;
+                    }
+                }
+    
+                (*best_split_direction, best_value)
+    }
+
     fn construct_level(dims: &Vec<Dimensions>, points: &mut[T]) -> Option<Box<Node<T>>> {
         let len = points.len();
         if len == 0 {
@@ -41,8 +60,10 @@ impl<T: KDPoint> Tree<T> {
             let mut values: [T; NODE_VALUE_COUNT] = [T::ZERO; NODE_VALUE_COUNT];
             let slice = &mut values[..len];
             slice.copy_from_slice(points);
-            let max_radius = values.iter().map(|x| x.get_radius()).fold(0., |m, a| if a.get_radius() > m { a } else { m });
+            let max_radius = values.iter().map(|x| x.get_radius()).fold(0., |m, a| if a > m { a } else { m });
             let mass: f64 = values.iter().map(|x| x.get_mass()).sum();
+
+            let (_, width) = Tree::get_max_dim_spread(dims, points);
             Some(Box::new(Node { 
                 left: None, 
                 right: None, 
@@ -52,29 +73,17 @@ impl<T: KDPoint> Tree<T> {
                 value_count: len as i32,
                 max_radius: max_radius,
                 com: KDPoint::compute_com(points),
-                mass: mass
+                mass: mass,
+                width: width
             }))
         }
         else {
-            let split_direction = *{
-                let mut best_split_direction = &dims[0];
-                let mut best_value = 0.;
-    
-                for d in dims {
-                    let x = T::spread_in_dim(points, d);
-                    if x > best_value {
-                        best_value = x;
-                        best_split_direction = d;
-                    }
-                }
-    
-                best_split_direction
-            };
+            let (split_direction, split_spread) = Tree::get_max_dim_spread(dims, points);
 
             let values: [T; NODE_VALUE_COUNT] = [T::ZERO; NODE_VALUE_COUNT];
             points.sort_unstable_by(|a, b| a.cmp_on_dim(b, &split_direction));
 
-            let max_radius = points.iter().map(|x| x.get_radius()).fold(0., |m, a| if a.get_radius() > m { a } else { m });
+            let max_radius = points.iter().map(|x| x.get_radius()).fold(0., |m, a| if a > m { a } else { m });
             let mass: f64 = points.iter().map(|x| x.get_mass()).sum();
             
             let median = T::get_value_in_dim(points, len/2, &split_direction);  //points[(points.len()/2)];
@@ -92,7 +101,8 @@ impl<T: KDPoint> Tree<T> {
                 value_count: 0,
                 max_radius: max_radius,
                 com: KDPoint::compute_com(points),
-                mass: mass
+                mass: mass,
+                width: split_spread
             }))
         }
     }
@@ -141,5 +151,32 @@ impl<T: KDPoint> Tree<T> {
             println!("");
         }
 
+    }
+
+    fn recursive_helper(n: &Option<Box<Node<T>>>, point: &T) -> (f64, f64, f64) {
+        match n {
+            None => (0., 0., 0.),
+            Some(r) => {
+                let node = r.as_ref();
+                let left = Tree::recursive_helper(&node.left, point);
+                let right = Tree::recursive_helper(&node.right, point);
+                let points_acc = if r.as_ref().value_count > 0 {
+                    let mut curr = (0., 0., 0.);
+
+                    for pt in &node.values {
+                        let (dx, dy, dz) = point.compute_acceleration_from(pt);
+                        curr = (curr.0 + dx, curr.1 + dy, curr.2 + dz);
+                    }
+
+                    curr
+                } else { (0., 0., 0.) };
+
+                (left.0 + right.0 + points_acc.0, left.1 + right.1 + points_acc.1, left.2 + right.2 + points_acc.2) 
+            }
+        }
+    }
+
+    pub fn compute_acceleration(&self, point: &T) -> (f64, f64, f64) {
+        Tree::recursive_helper(&self.root, point)
     }
 }
