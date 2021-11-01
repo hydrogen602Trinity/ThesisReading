@@ -1,6 +1,8 @@
 mod kdtree;
 mod kdpoint;
 mod util;
+mod integrate;
+mod kdpoint_ref;
 
 use kdpoint::PhysicsPoint3D;
 use kdtree::Tree;

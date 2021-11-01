@@ -1,3 +1,4 @@
+use crate::util::Vect3; 
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Dimensions {
@@ -18,7 +19,7 @@ pub trait KDPoint: Copy {
 
     fn get_value_in_dim(data: &[Self], index: usize, dim: &Dimensions) -> f64;
 
-    fn compute_com(data: &[Self]) -> (f64, f64, f64);
+    fn compute_com(data: &[Self]) -> Vect3;
 
     fn print(&self);
 
@@ -33,7 +34,7 @@ pub trait KDPoint: Copy {
     /**
      * Compute the acceleration that self will feel from other
      */
-    fn compute_acceleration_from(&self, other: &Self) -> (f64, f64, f64);
+    fn compute_acceleration_from(&self, other: &Self) -> Vect3;
 
     // compute center of mass
     // get max radius in node
@@ -175,19 +176,15 @@ impl KDPoint for (f64, f64) {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct PhysicsPoint3D {
-    x: f64,
-    y: f64,
-    z: f64,
-    vx: f64,
-    vy: f64,
-    vz: f64,
-    m: f64,
-    r: f64
+    pub pos: Vect3,
+    pub vel: Vect3,
+    pub m: f64,
+    pub r: f64
 }
 
 impl PhysicsPoint3D {
     pub fn new(x: f64, y: f64, z: f64, vx: f64, vy: f64, vz: f64, m: f64, r: f64) -> PhysicsPoint3D {
-        PhysicsPoint3D { x, y, z, vx, vy, vz, m, r }
+        PhysicsPoint3D { pos: Vect3{x, y, z}, vel: Vect3{x: vx, y: vy, z: vz}, m, r }
     }
 }
 
@@ -195,13 +192,13 @@ impl KDPoint for PhysicsPoint3D {
     fn spread_in_dim(data: &[Self], dim: &Dimensions) -> f64 {
         let selector: fn(&PhysicsPoint3D) -> f64 = match dim {
             Dimensions::X => {
-                |pt| pt.x
+                |pt| pt.pos.x
             },
             Dimensions::Y => {
-                |pt| pt.y
+                |pt| pt.pos.y
             },
             Dimensions::Z => {
-                |pt| pt.z
+                |pt| pt.pos.z
             },
             _ => panic!("This Tree is 3D")
         };
@@ -213,9 +210,9 @@ impl KDPoint for PhysicsPoint3D {
 
     fn cmp_on_dim(&self, other: &Self, dim: &Dimensions) -> std::cmp::Ordering {
         let (s, o) = match dim {
-            Dimensions::X => (self.x, other.x),
-            Dimensions::Y => (self.y, other.y),
-            Dimensions::Z => (self.z, other.z),
+            Dimensions::X => (self.pos.x, other.pos.x),
+            Dimensions::Y => (self.pos.y, other.pos.y),
+            Dimensions::Z => (self.pos.z, other.pos.z),
             _ => panic!("This Tree is 3D")
         };
 
@@ -232,27 +229,27 @@ impl KDPoint for PhysicsPoint3D {
 
     fn get_value_in_dim(data: &[Self], index: usize, dim: &Dimensions) -> f64 {
         match dim {
-            Dimensions::X => data[index].x,
-            Dimensions::Y => data[index].y,
-            Dimensions::Z => data[index].z,
+            Dimensions::X => data[index].pos.x,
+            Dimensions::Y => data[index].pos.y,
+            Dimensions::Z => data[index].pos.z,
             _ => panic!("This Tree is 3D")
         }
     }
 
-    fn compute_com(data: &[Self]) -> (f64, f64, f64) {
+    fn compute_com(data: &[Self]) -> Vect3 {
         let total_mass: f64 = data.iter().map(|pt| pt.m).sum();
-        let avg_x = data.iter().map(|pt| pt.x * pt.m).sum::<f64>() / total_mass;
-        let avg_y = data.iter().map(|pt| pt.y * pt.m).sum::<f64>() / total_mass;
-        let avg_z = data.iter().map(|pt| pt.z * pt.m).sum::<f64>() / total_mass;
+        let avg_x = data.iter().map(|pt| pt.pos.x * pt.m).sum::<f64>() / total_mass;
+        let avg_y = data.iter().map(|pt| pt.pos.y * pt.m).sum::<f64>() / total_mass;
+        let avg_z = data.iter().map(|pt| pt.pos.z * pt.m).sum::<f64>() / total_mass;
 
-        (avg_x, avg_y, avg_z)
+        Vect3::new(avg_x, avg_y, avg_z)
     }
 
     fn print(&self) {
-        print!("<{:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2}>", self.x, self.y, self.z, self.vx, self.vy, self.vz);
+        print!("<{:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2}>", self.pos.x, self.pos.y, self.pos.z, self.vel.x, self.vel.y, self.vel.z);
     }
 
-    const ZERO: Self = PhysicsPoint3D { x: 0., y: 0., z: 0., vx: 0., vy: 0., vz: 0., m: 0., r: 0. };
+    const ZERO: Self = PhysicsPoint3D { pos: Vect3::ZERO, vel: Vect3::ZERO, m: 0., r: 0. };
 
     fn all_axis() -> Vec<Dimensions> {
         vec![Dimensions::X, Dimensions::Y, Dimensions::Z]
@@ -266,20 +263,29 @@ impl KDPoint for PhysicsPoint3D {
         self.m
     }
 
-    fn compute_acceleration_from(&self, other: &Self) -> (f64, f64, f64) {
+    fn compute_acceleration_from(&self, other: &Self) -> Vect3 {
         // F = G m1 m2 / r^2
         // a m1 = G m1 m2 / r^2
         // a = G m2 / r^2
         const G: f64 = 1.;
 
-        let sq = |x| x*x;
+        if self.pos == other.pos {
+            // if a bunch of doubles are exactly the same, then self is other
+            Vect3::ZERO // particles are not attracted to themselves
+        }
+        else {
+            let sq = |x| x*x;
 
-        let r = (sq(self.x - other.x) + sq(self.y - other.y) + sq(self.z - other.z)).sqrt();
+            let r = (&self.pos - &other.pos).mag();
+            // let r = (sq(self.x - other.x) + sq(self.y - other.y) + sq(self.z - other.z)).sqrt();
 
-        let mag = G * other.m / sq(r);
+            let mag = G * other.m / sq(r);
 
-        let point_vec = ((other.x - self.x) / r, (other.y - self.y) / r, (other.z - self.z) / r);
+            let point_vec = (other.pos - self.pos) / r;
+            // let point_vec = ((other.x - self.x) / r, (other.y - self.y) / r, (other.z - self.z) / r);
 
-        (point_vec.0 * mag, point_vec.1 * mag, point_vec.2 * mag)
+            // Vect3::new(point_vec.0 * mag, point_vec.1 * mag, point_vec.2 * mag)
+            point_vec * mag
+        }
     }
 }

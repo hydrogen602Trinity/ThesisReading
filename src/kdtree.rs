@@ -1,4 +1,5 @@
 use crate::kdpoint::{Dimensions, KDPoint};
+use crate::util::Vect3;
 
 const NODE_VALUE_COUNT: usize = 8;//13;
 const OPENING_ANGLE_RATIO: f64 = 100.; // about 0.5 degree
@@ -10,10 +11,10 @@ pub struct Node<T> {
     right: Option<Box<Node<T>>>,
     split_direction: Dimensions,
     split_value: f64,
-    values: [T; NODE_VALUE_COUNT],
+    _values: [T; NODE_VALUE_COUNT],
     value_count: i32,
     max_radius: f64,
-    com: (f64, f64, f64),
+    com: Vect3,
     mass: f64,
     width: f64
     // store width, max spread
@@ -21,10 +22,27 @@ pub struct Node<T> {
 
 }
 
+impl<T> Node<T> {
+    pub fn get_values(&self) -> &[T] {
+        &self._values[0..(self.value_count as usize)]
+    }
+
+    pub fn get_values_m(&mut self) -> &mut [T] {
+        &mut self._values[0..(self.value_count as usize)]
+    }
+}
+
 pub struct Tree<T: KDPoint> {
     pub root: Option<Box<Node<T>>>,
     pub dims: Vec<Dimensions>
 }
+
+// struct TreeIterLocation<'a, T: KDPoint> {
+//     tree: &'a Tree<T>,
+//     // current: Option<&'a Node<T>>,
+//     index: usize,
+//     stack: Vec<&'a Node<T>>
+// }
 
 impl<T: KDPoint> Tree<T> {
     pub fn new(points: &mut [T]) -> Tree<T> {
@@ -53,8 +71,6 @@ impl<T: KDPoint> Tree<T> {
         if len == 0 {
             return None;
         }
-        
-        
 
         if len <= NODE_VALUE_COUNT {
             let mut values: [T; NODE_VALUE_COUNT] = [T::ZERO; NODE_VALUE_COUNT];
@@ -69,7 +85,7 @@ impl<T: KDPoint> Tree<T> {
                 right: None, 
                 split_direction: Dimensions::X, 
                 split_value: 0.,
-                values: values,
+                _values: values,
                 value_count: len as i32,
                 max_radius: max_radius,
                 com: KDPoint::compute_com(points),
@@ -97,7 +113,7 @@ impl<T: KDPoint> Tree<T> {
                 right: right, 
                 split_direction: split_direction, 
                 split_value: median,
-                values: values,
+                _values: values,
                 value_count: 0,
                 max_radius: max_radius,
                 com: KDPoint::compute_com(points),
@@ -139,44 +155,108 @@ impl<T: KDPoint> Tree<T> {
                 print!("  ");
             }
             print!("points = ");
-            let mut i = 0;
-            for v in &n.values {
-                if i >= n.value_count {
-                    break;
-                }
+            for v in n.get_values() {
                 v.print();
                 print!(", ");
-                i += 1;
             }
             println!("");
         }
 
     }
 
-    fn recursive_helper(n: &Option<Box<Node<T>>>, point: &T) -> (f64, f64, f64) {
+    fn recursive_helper(n: &Option<Box<Node<T>>>, point: &T) -> Vect3 {
         match n {
-            None => (0., 0., 0.),
+            None => Vect3::ZERO,
             Some(r) => {
                 let node = r.as_ref();
                 let left = Tree::recursive_helper(&node.left, point);
                 let right = Tree::recursive_helper(&node.right, point);
                 let points_acc = if r.as_ref().value_count > 0 {
-                    let mut curr = (0., 0., 0.);
+                    let mut curr = Vect3::ZERO;
 
-                    for pt in &node.values {
-                        let (dx, dy, dz) = point.compute_acceleration_from(pt);
-                        curr = (curr.0 + dx, curr.1 + dy, curr.2 + dz);
+                    for pt in node.get_values() {
+                        curr = curr + point.compute_acceleration_from(pt);
                     }
 
                     curr
-                } else { (0., 0., 0.) };
+                } else { Vect3::ZERO };
 
-                (left.0 + right.0 + points_acc.0, left.1 + right.1 + points_acc.1, left.2 + right.2 + points_acc.2) 
+                left + right + points_acc
             }
         }
     }
 
-    pub fn compute_acceleration(&self, point: &T) -> (f64, f64, f64) {
+    pub fn compute_acceleration(&self, point: &T) -> Vect3 {
         Tree::recursive_helper(&self.root, point)
     }
+
+    // pub fn iter(&self) -> TreeIterLocation<T> {
+    //     // let t = TreeIterLocation{ tree: self, stack: Vec::new(), index: 0 }
+    //     // t.go_left();
+    //     // return 
+    //     TreeIterLocation::new(self)
+    // }
 }
+
+// impl<T> Node<T> {
+
+//     pub fn go_left(&self, stack: &Vec<&Node<T>>) -> &Self {
+//         match self.left {
+//             Some(e) => {
+//                 let mut node = e;
+//                 while false {
+//                     match node.left {
+//                         Some(e) => { node = e; }
+//                         None => { break; }
+//                     }
+//                 }
+//                 node.as_ref()
+//             },
+//             None => self
+//         }
+//     }
+// }
+
+// impl<'a, T: KDPoint> TreeIterLocation<'a, T> {
+
+//     pub fn new(tree: &Tree<T>) -> TreeIterLocation<T> {
+//         let mut stack = Vec::new();
+//         // self.root.map(|e| e.as_ref().go_left())
+//         let mut node = tree.root.map(|e| e.as_ref());
+//         while match node {
+//                 Some(e) => {
+//                     stack.push(e);
+//                     node = e.left.map(|e| e.as_ref());
+//                     true 
+//                 }
+//                 None => false
+//         } {}
+        
+//         TreeIterLocation{ tree: tree, stack: stack, index: 0 }
+//     }
+// }
+
+// impl<'a, T: KDPoint> Iterator for TreeIterLocation<'a, T> {
+//     // We can refer to this type using Self::Item
+//     type Item = &'a T;
+
+//     fn next(&mut self) -> Option<Self::Item> {
+//         match self.stack.pop() {
+//             Some(e) => {
+//                 match e.get_values().get(self.index) {
+//                     Some(v) => {
+//                         self.index += 1;
+//                         Some(v)
+//                     },
+//                     None => {
+//                         // nothing left here, go up
+//                         self.index = 0;
+
+//                     }
+//                 }
+//             },
+//             None => None
+//         }
+//     }
+// }
+
