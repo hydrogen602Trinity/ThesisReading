@@ -1,7 +1,7 @@
 use crate::kdpoint::*;
 use crate::util::Vect3;
 
-const system: Vec<PhysicsPoint3D> = Vec::new();
+pub const system: Vec<PhysicsPoint3D> = Vec::new();
 
 // fn index(i: &i32) -> &PhysicsPoint3D {
 //     if i < &0 {
@@ -16,23 +16,21 @@ const system: Vec<PhysicsPoint3D> = Vec::new();
 //     }
 // }
 
-macro_rules! index {
-    ( $i:expr ) => {
-        if ($i) < &0 {
-            &PhysicsPoint3D::ZERO
-        }
-        else {
-            system.get(*($i) as usize).unwrap()
-        }
+fn index(i: &i32) -> PhysicsPoint3D {
+    if i < &0 {
+        PhysicsPoint3D::ZERO
+    }
+    else {
+        system[*i as usize]
     }
 }
 
-fn pos(i: &i32) -> &Vect3 {
+fn pos(i: &i32) -> Vect3 {
     if i < &0 {
-        &PhysicsPoint3D::ZERO.pos
+        PhysicsPoint3D::ZERO.pos
     }
     else {
-        &system[*i as usize].pos
+        system[*i as usize].pos
     }
 }
 
@@ -88,16 +86,16 @@ impl KDPoint for i32 {
     }
 
     fn compute_com(data: &[Self]) -> Vect3 {
-        let total_mass: f64 = data.iter().map(|pt| index!(pt).m).sum();
-        let avg_x = data.iter().map(|pt| pos(pt).x * index!(pt).m).sum::<f64>() / total_mass;
-        let avg_y = data.iter().map(|pt| pos(pt).y * index!(pt).m).sum::<f64>() / total_mass;
-        let avg_z = data.iter().map(|pt| pos(pt).z * index!(pt).m).sum::<f64>() / total_mass;
+        let total_mass: f64 = data.iter().map(|pt| index(pt).m).sum();
+        let avg_x = data.iter().map(|pt| pos(pt).x * index(pt).m).sum::<f64>() / total_mass;
+        let avg_y = data.iter().map(|pt| pos(pt).y * index(pt).m).sum::<f64>() / total_mass;
+        let avg_z = data.iter().map(|pt| pos(pt).z * index(pt).m).sum::<f64>() / total_mass;
 
         Vect3::new(avg_x, avg_y, avg_z)
     }
 
     fn print(&self) {
-        let data = index!(self);
+        let data = index(self);
         print!("<{:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2}>", data.pos.x, data.pos.y, data.pos.z, data.vel.x, data.vel.y, data.vel.z);
     }
 
@@ -108,11 +106,11 @@ impl KDPoint for i32 {
     }
 
     fn get_radius(&self) -> f64 {
-        index!(self).r
+        index(self).r
     }
 
     fn get_mass(&self) -> f64 {
-        index!(self).m
+        index(self).m
     }
 
     fn compute_acceleration_from(&self, other: &Self) -> Vect3 {
@@ -121,8 +119,8 @@ impl KDPoint for i32 {
         // a = G m2 / r^2
         const G: f64 = 1.;
 
-        let self_pt = index!(self);
-        let other_pt = index!(other);
+        let self_pt = index(self);
+        let other_pt = index(other);
 
         if self_pt.pos == other_pt.pos {
             // if a bunch of doubles are exactly the same, then self is other
