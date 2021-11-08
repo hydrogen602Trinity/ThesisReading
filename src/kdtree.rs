@@ -51,7 +51,7 @@ impl<T: KDPoint> Tree<T> {
         Tree { root: root, dims: dims }
     }
 
-    fn get_max_dim_spread(dims: &Vec<Dimensions>, points: &mut[T]) -> (Dimensions, f64) {
+    fn get_max_dim_spread(dims: &Vec<Dimensions>, points: &[T]) -> (Dimensions, f64) {
         let mut best_split_direction = &dims[0];
                 let mut best_value = 0.;
     

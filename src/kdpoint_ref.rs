@@ -1,7 +1,32 @@
 use crate::kdpoint::*;
+use crate::kdtree::Tree;
 use crate::util::Vect3;
 
-pub const system: Vec<PhysicsPoint3D> = Vec::new();
+
+// pub const system: Vec<PhysicsPoint3D> = Vec::new();
+// static mut systemState: Mutex<Vec<PhysicsPoint3D>> = Mutex::new(Vec::new()); //: Box<Vec<PhysicsPoint3D>> = 
+
+
+fn create_index<T>(system: &Vec<T>) -> Vec<i32> {
+    let mut v = Vec::new();
+    v.resize(system.len(), 0);
+    for i in 0..system.len() {
+        v[i] = i as i32;
+    }
+    v
+}
+
+pub fn create_tree<T>(system: &Vec<T>) -> Tree<i32> {
+    let mut c = create_index(system);
+    Tree::new(&mut c)
+}
+
+pub fn print_sys<T: KDPoint>(system: &Vec<T>) {
+    for p in system.iter() {
+        p.print();
+        println!();
+    }
+}
 
 // fn index(i: &i32) -> &PhysicsPoint3D {
 //     if i < &0 {
@@ -16,7 +41,13 @@ pub const system: Vec<PhysicsPoint3D> = Vec::new();
 //     }
 // }
 
-fn index(i: &i32) -> PhysicsPoint3D {
+// pub fn build_tree() -> Tree<i32> {
+//     let r = 0..system.len();
+//     //Tree::new(r)
+
+// }
+
+fn index(i: &i32, system: &Vec<PhysicsPoint3D>) -> PhysicsPoint3D {
     if i < &0 {
         PhysicsPoint3D::ZERO
     }
@@ -25,7 +56,7 @@ fn index(i: &i32) -> PhysicsPoint3D {
     }
 }
 
-fn pos(i: &i32) -> Vect3 {
+fn pos(i: &i32, system: &Vec<PhysicsPoint3D>) -> Vect3 {
     if i < &0 {
         PhysicsPoint3D::ZERO.pos
     }
