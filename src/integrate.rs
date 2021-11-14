@@ -21,7 +21,7 @@ pub fn kick_step_once(tree: &Tree<i32>, h: f64) {
     unsafe {
         for (i, p) in system.iter().enumerate() {
             let a = tree.compute_acceleration(&(i as i32));
-            a.println();
+            // a.println();
             system[i].vel = system[i].vel + a * h;
         }
     
@@ -46,7 +46,7 @@ pub fn integrate(h: f64, end: f64, info: &mut File) {
     println!("end = {:.3}", end);
     let mut t = 0.;
     while t < end {
-        println!("t = {:.3}", t);
+        // println!("t = {:.3}", t);
         kick_step_once(&tree, h);
         tree = create_tree(sys);
         t += h;

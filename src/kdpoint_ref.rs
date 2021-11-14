@@ -71,6 +71,12 @@ fn pos(i: &i32) -> Vect3 {
 }
 
 impl KDPoint for i32 {
+    fn get_point(&self) -> Vect3 {
+        unsafe {
+            system[*self as usize].pos
+        }
+    }
+
     fn spread_in_dim(data: &[Self], dim: &Dimensions) -> f64 {
 
 
@@ -149,6 +155,22 @@ impl KDPoint for i32 {
 
     fn get_mass(&self) -> f64 {
         index(self).m
+    }
+
+    fn compute_acceleration_from_node(&self, other: &crate::kdtree::Node<Self>) -> Vect3 {
+        const G: f64 = 1.;
+        
+        let self_pt = index(self);
+        let r = self_pt.pos - other.com;
+        // let r = (sq(self.x - other.x) + sq(self.y - other.y) + sq(self.z - other.z)).sqrt();
+
+        let mag = -G * other.mass / r.mag_sq();
+
+        let r_hat = r.norm();
+        // let point_vec = ((other.x - self.x) / r, (other.y - self.y) / r, (other.z - self.z) / r);
+
+        // Vect3::new(point_vec.0 * mag, point_vec.1 * mag, point_vec.2 * mag)
+        r_hat * mag
     }
 
     fn compute_acceleration_from(&self, other: &Self) -> Vect3 {

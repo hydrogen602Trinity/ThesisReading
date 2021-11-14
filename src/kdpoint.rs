@@ -21,6 +21,8 @@ pub trait KDPoint: Copy {
 
     fn compute_com(data: &[Self]) -> Vect3;
 
+    fn get_point(&self) -> Vect3;
+
     fn print(&self);
 
     const ZERO: Self;
@@ -35,6 +37,8 @@ pub trait KDPoint: Copy {
      * Compute the acceleration that self will feel from other
      */
     fn compute_acceleration_from(&self, other: &Self) -> Vect3;
+
+    fn compute_acceleration_from_node(&self, other: &crate::kdtree::Node<Self>) -> Vect3;
 
     // compute center of mass
     // get max radius in node
@@ -189,6 +193,10 @@ impl PhysicsPoint3D {
 }
 
 impl KDPoint for PhysicsPoint3D {
+    fn get_point(&self) -> Vect3 {
+        self.pos
+    }
+
     fn spread_in_dim(data: &[Self], dim: &Dimensions) -> f64 {
         let selector: fn(&PhysicsPoint3D) -> f64 = match dim {
             Dimensions::X => {
@@ -263,6 +271,24 @@ impl KDPoint for PhysicsPoint3D {
         self.m
     }
 
+    fn compute_acceleration_from_node(&self, other: &crate::kdtree::Node<Self>) -> Vect3 {
+        // F = G m1 m2 / r^2
+        // a m1 = G m1 m2 / r^2
+        // a = G m2 / r^2
+        const G: f64 = 1.;
+
+        let r = self.pos - other.com;
+        // let r = (sq(self.x - other.x) + sq(self.y - other.y) + sq(self.z - other.z)).sqrt();
+
+        let mag = -G * other.mass / r.mag_sq();
+
+        let r_hat = r.norm();
+        // let point_vec = ((other.x - self.x) / r, (other.y - self.y) / r, (other.z - self.z) / r);
+
+        // Vect3::new(point_vec.0 * mag, point_vec.1 * mag, point_vec.2 * mag)
+        r_hat * mag
+    }
+
     fn compute_acceleration_from(&self, other: &Self) -> Vect3 {
         // F = G m1 m2 / r^2
         // a m1 = G m1 m2 / r^2
@@ -274,18 +300,16 @@ impl KDPoint for PhysicsPoint3D {
             Vect3::ZERO // particles are not attracted to themselves
         }
         else {
-            let sq = |x| x*x;
-
-            let r = (&self.pos - &other.pos).mag();
+            let r = self.pos - other.pos;
             // let r = (sq(self.x - other.x) + sq(self.y - other.y) + sq(self.z - other.z)).sqrt();
 
-            let mag = G * other.m / sq(r);
+            let mag = -G * other.m / r.mag_sq();
 
-            let point_vec = (other.pos - self.pos) / r;
+            let r_hat = r.norm();
             // let point_vec = ((other.x - self.x) / r, (other.y - self.y) / r, (other.z - self.z) / r);
 
             // Vect3::new(point_vec.0 * mag, point_vec.1 * mag, point_vec.2 * mag)
-            point_vec * mag
+            r_hat * mag
         }
     }
 }

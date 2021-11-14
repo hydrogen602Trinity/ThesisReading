@@ -2,21 +2,22 @@ use crate::kdpoint::{Dimensions, KDPoint};
 use crate::util::Vect3;
 
 const NODE_VALUE_COUNT: usize = 8;//13;
-const OPENING_ANGLE_RATIO: f64 = 100.; // about 0.5 degree
+const OPENING_ANGLE_RATIO: f64 = 0.01; // about tan(0.5 degree)
+// OPENING_ANGLE_RATIO = size / distance
 
 // const DIMS: [Dimensions; 6] = [Dimensions::X, Dimensions::Y, Dimensions::Z, Dimensions::VX, Dimensions::VY, Dimensions::VZ];
 
 pub struct Node<T> {
-    left: Option<Box<Node<T>>>,
-    right: Option<Box<Node<T>>>,
-    split_direction: Dimensions,
-    split_value: f64,
+    pub left: Option<Box<Node<T>>>,
+    pub right: Option<Box<Node<T>>>,
+    pub split_direction: Dimensions,
+    pub split_value: f64,
     _values: [T; NODE_VALUE_COUNT],
-    value_count: i32,
-    max_radius: f64,
-    com: Vect3,
-    mass: f64,
-    width: f64
+    pub value_count: i32,
+    pub max_radius: f64,
+    pub com: Vect3,
+    pub mass: f64,
+    pub width: f64
     // store width, max spread
     // opening angle size/distance
 
@@ -165,24 +166,32 @@ impl<T: KDPoint> Tree<T> {
     }
 
     fn recursive_helper(n: &Option<Box<Node<T>>>, point: &T) -> Vect3 {
-        println!("Recursion!");
+        // println!("Recursion!");
         match n {
             None => Vect3::ZERO,
             Some(r) => {
                 let node = r.as_ref();
-                let left = Tree::recursive_helper(&node.left, point);
-                let right = Tree::recursive_helper(&node.right, point);
-                let points_acc = if r.as_ref().value_count > 0 {
-                    let mut curr = Vect3::ZERO;
+                let dis = (point.get_point() - node.com).mag();
+                let open_angle = node.width / dis;
+                if open_angle < OPENING_ANGLE_RATIO {
+                    point.compute_acceleration_from_node(node)
+                }
+                else {
+                    let left = Tree::recursive_helper(&node.left, point);
+                    let right = Tree::recursive_helper(&node.right, point);
+                    let points_acc = if r.as_ref().value_count > 0 {
+                        let mut curr = Vect3::ZERO;
+    
+                        for pt in node.get_values() {
+                            curr = curr + point.compute_acceleration_from(pt);
+                        }
+    
+                        curr
+                    } else { Vect3::ZERO };
+    
+                    left + right + points_acc
+                }
 
-                    for pt in node.get_values() {
-                        curr = curr + point.compute_acceleration_from(pt);
-                    }
-
-                    curr
-                } else { Vect3::ZERO };
-
-                left + right + points_acc
             }
         }
     }
