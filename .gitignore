@@ -1,3 +1,4 @@
 /target
 *.lock
-data.out
+*.out
+position.txt

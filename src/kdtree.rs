@@ -165,6 +165,7 @@ impl<T: KDPoint> Tree<T> {
     }
 
     fn recursive_helper(n: &Option<Box<Node<T>>>, point: &T) -> Vect3 {
+        println!("Recursion!");
         match n {
             None => Vect3::ZERO,
             Some(r) => {

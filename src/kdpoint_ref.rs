@@ -3,26 +3,27 @@ use crate::kdtree::Tree;
 use crate::util::Vect3;
 
 
+pub static mut system: Vec<PhysicsPoint3D> = Vec::new();
 // pub const system: Vec<PhysicsPoint3D> = Vec::new();
 // static mut systemState: Mutex<Vec<PhysicsPoint3D>> = Mutex::new(Vec::new()); //: Box<Vec<PhysicsPoint3D>> = 
 
 
-fn create_index<T>(system: &Vec<T>) -> Vec<i32> {
+fn create_index(sys: &Vec<PhysicsPoint3D>) -> Vec<i32> {
     let mut v = Vec::new();
-    v.resize(system.len(), 0);
-    for i in 0..system.len() {
+    v.resize(sys.len(), 0);
+    for i in 0..sys.len() {
         v[i] = i as i32;
     }
     v
 }
 
-pub fn create_tree<T>(system: &Vec<T>) -> Tree<i32> {
-    let mut c = create_index(system);
+pub fn create_tree(sys: &Vec<PhysicsPoint3D>) -> Tree<i32> {
+    let mut c = create_index(sys);
     Tree::new(&mut c)
 }
 
-pub fn print_sys<T: KDPoint>(system: &Vec<T>) {
-    for p in system.iter() {
+pub fn print_sys(sys: &Vec<PhysicsPoint3D>) {
+    for p in sys.iter() {
         p.print();
         println!();
     }
@@ -47,26 +48,32 @@ pub fn print_sys<T: KDPoint>(system: &Vec<T>) {
 
 // }
 
-fn index(i: &i32, system: &Vec<PhysicsPoint3D>) -> PhysicsPoint3D {
+fn index(i: &i32) -> PhysicsPoint3D {
     if i < &0 {
         PhysicsPoint3D::ZERO
     }
     else {
-        system[*i as usize]
+        unsafe {
+            system[*i as usize]
+        }
     }
 }
 
-fn pos(i: &i32, system: &Vec<PhysicsPoint3D>) -> Vect3 {
+fn pos(i: &i32) -> Vect3 {
     if i < &0 {
         PhysicsPoint3D::ZERO.pos
     }
     else {
-        system[*i as usize].pos
+        unsafe {
+            system[*i as usize].pos
+        }
     }
 }
 
 impl KDPoint for i32 {
     fn spread_in_dim(data: &[Self], dim: &Dimensions) -> f64 {
+
+
         let selector: fn(&i32) -> f64 = match dim {
             Dimensions::X => {
                 |pt| pos(pt).x
@@ -158,18 +165,16 @@ impl KDPoint for i32 {
             Vect3::ZERO // particles are not attracted to themselves
         }
         else {
-            let sq = |x| x*x;
-
-            let r = (self_pt.pos - other_pt.pos).mag();
+            let r = self_pt.pos - other_pt.pos;
             // let r = (sq(self.x - other.x) + sq(self.y - other.y) + sq(self.z - other.z)).sqrt();
 
-            let mag = G * other_pt.m / sq(r);
+            let mag = -G * other_pt.m / r.mag_sq();
 
-            let point_vec = (other_pt.pos - self_pt.pos) / r;
+            let r_hat = r.norm();
             // let point_vec = ((other.x - self.x) / r, (other.y - self.y) / r, (other.z - self.z) / r);
 
             // Vect3::new(point_vec.0 * mag, point_vec.1 * mag, point_vec.2 * mag)
-            point_vec * mag
+            r_hat * mag
         }
     }
 }

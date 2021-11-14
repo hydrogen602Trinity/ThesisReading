@@ -25,6 +25,14 @@ impl Vect3 {
         (self * self).sqrt()
     }
 
+    pub fn print(&self) {
+        print!("<{:.2e} {:.2e} {:.2e}>", self.x, self.y, self.z);
+    }
+
+    pub fn println(&self) {
+        println!("<{:.2e} {:.2e} {:.2e}>", self.x, self.y, self.z);
+    }
+
     pub const ZERO: Vect3 = Vect3 { x: 0., y: 0., z: 0. };
 }
 

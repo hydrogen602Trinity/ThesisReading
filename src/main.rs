@@ -4,11 +4,15 @@ mod util;
 mod integrate;
 mod kdpoint_ref;
 
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
+
 use kdpoint::PhysicsPoint3D;
 // use kdtree::Tree;
-use kdpoint_ref::{print_sys};
+use kdpoint_ref::{print_sys, system};
 use integrate::integrate;
-use kdpoint::KDPoint;
+// use kdpoint::KDPoint;
 
 fn main() {    
     // let mut x: [f64; 50] = [26.21, 9.78, 26.18, 27.38, 8.59, 16.97, 0.31, 18.57, 21.27, 28.89, 28.43, 25.99, 6.74, 18.69, 0.3, 2.72, 14.48, 12.52, 9.49, 7.1, 15.57, 22.23, 17.85, 23.63, 26.12, 10.17, 0.81, 2.42, 0.98, 24.66, 28.93, 11.32, 3.19, 25.29, 6.91, 28.45, 4.41, 12.77, 24.46, 3.34, 4.54, 11.03, 27.08, 2.67, 22.7, 11.12, 14.25, 27.21, 18.1, 17.26];
@@ -28,15 +32,24 @@ fn main() {
     //     system.push(p);
     // }
 
-    let mut system: Vec<PhysicsPoint3D> = vec![PhysicsPoint3D::new(0., 0., 0., 0., 0., 0., 1., 0.), PhysicsPoint3D::new(1., 0., 0., 0., 1., 0., 1e-7, 0.)];
+    let path = Path::new("position.txt");
+    let display = path.display();
 
-    println!("idk {}", system.len());
+    let mut file = match File::create(&path) {
+        Err(why) => panic!("couldn't create {}: {}", display, why),
+        Ok(file) => file,
+    };
 
-    print_sys(&system);
+    unsafe {
+        system.push(PhysicsPoint3D::new(0., 0., 0., 0., 0., 0., 1., 0.));
+        system.push(PhysicsPoint3D::new(1., 0., 0., 0., 1., 0., 1e-7, 0.));
 
-    integrate(h, std::f64::consts::PI, &mut system);
+        println!("idk {}", system.len());
 
-    print_sys(&system);
+        print_sys(&system);
 
-    // t.printer();
+        integrate(h, std::f64::consts::PI, &mut file); //, &mut system);
+
+        print_sys(&system);
+    }
 }
