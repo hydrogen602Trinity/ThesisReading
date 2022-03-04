@@ -1,4 +1,6 @@
 /target
 *.lock
 *.out
+
 position.txt
+pipe

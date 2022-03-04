@@ -1,4 +1,4 @@
-use std::ops::{Add, Div, Mul, Sub, Neg};
+use std::ops::{Add, Div, Mul, Sub, Neg, AddAssign, SubAssign};
 
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -37,10 +37,25 @@ impl Vect3 {
 }
 
 
-
 // #[macro_export]
 macro_rules! helper {
     ( $type:ty ) => {
+        impl AddAssign<$type> for Vect3 {
+            fn add_assign(&mut self, rhs: $type) {
+                self.x += rhs.x;
+                self.y += rhs.y;
+                self.z += rhs.z;
+            }
+        }
+        
+        impl SubAssign<$type> for Vect3 {
+            fn sub_assign(&mut self, rhs: $type) {
+                self.x -= rhs.x;
+                self.y -= rhs.y;
+                self.z -= rhs.z;
+            }
+        }
+
         impl Div<f64> for $type {
             type Output = Vect3;
         
