@@ -26,7 +26,9 @@ impl PairwiseSymmetricForce for DampedSpring {
 
             // collision
             let f_spring = x_hat * -self.k * delta;
-            let f_damp = vji * -self.b;
+            let f_damp = x_hat * (vji * x_hat) * -self.b;
+
+            // println!("{}, {}", f_spring.mag(), f_damp.mag());
     
             let f_total = f_spring + f_damp;
     
