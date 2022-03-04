@@ -54,7 +54,7 @@
 //     }
 // }
 
-use idk::{LinearWell, KickStep, Integrator};
+use idk::{LinearWell, KickStep, Integrator, forces::DampedSpring, no_explode};
 use kdpoint::PhysicsPoint3D;
 use util::Vect3;
 
@@ -66,15 +66,30 @@ mod util;
 fn main() {
     let c = Vect3::ZERO;
 
-    let particles = vec![
-        PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.),
-        PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.),
-        PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.),
-        PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.)
-    ];
+    let mut particles: Vec<PhysicsPoint3D> = Vec::new();
 
-    let dt = 0.01;
-    let mut setup = idk::Setup::new(LinearWell::new(Vect3::ZERO, 2.), particles, dt);
+    // let particles = vec![
+    //     PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.),
+    //     PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.),
+    //     PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.),
+    //     PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.)
+    // ];
+
+    for i in 0..40 {
+        particles.push(PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.));
+    }
+
+
+    let (k, b) = no_explode::compute::b_and_k3(5., 1., 1.);
+
+    let k_force = DampedSpring::new(1., 0.1);
+
+    let dt = 0.001;
+    let mut setup = idk::Setup::new(
+        LinearWell::new(Vect3::ZERO, 2.), 
+        k_force, 
+        particles, 
+        dt);
 
     KickStep::simulate(&mut setup, 1000.);
 }

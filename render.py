@@ -14,7 +14,7 @@ def file_reader():
     global running, last_data
     with open('pipe', buffering=1) as f:
         while True:
-            sleep(0.001)
+            sleep(0.0001)
             last_data = f.readline()
             if last_data == 'END' or last_data == '':
                 break
@@ -40,8 +40,10 @@ while running:
     if not last_data:
         continue
 
+    import itertools
+    
     colors = [(0, 0, 255), (255, 0, 0), (0, 255, 0), (255, 255, 0)]
-    for c, particle in zip(colors, last_data.split('|')):
+    for c, particle in zip(itertools.repeat((0, 0, 255)), last_data.split('|')):
         x, y, z = (float(n)*5 for n in particle.split(','))
 
         # Draw a solid blue circle in the center
