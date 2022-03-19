@@ -1,18 +1,18 @@
-use crate::kdpoint::{Dimensions, KDPoint};
+use crate::kdpoint::{Dimensions3, KDPoint};
 use crate::util::Vect3;
 
 const NODE_VALUE_COUNT: usize = 8;//13;
 const OPENING_ANGLE_RATIO: f64 = 0.01; // about tan(0.5 degree)
 // OPENING_ANGLE_RATIO = size / distance
 
-// const DIMS: [Dimensions; 6] = [Dimensions::X, Dimensions::Y, Dimensions::Z, Dimensions::VX, Dimensions::VY, Dimensions::VZ];
+// const DIMS: [Dimensions3; 6] = [Dimensions3::X, Dimensions3::Y, Dimensions3::Z, Dimensions3::VX, Dimensions3::VY, Dimensions3::VZ];
 
-pub struct Node<T> {
-    pub left: Option<Box<Node<T>>>,
-    pub right: Option<Box<Node<T>>>,
-    pub split_direction: Dimensions,
+pub struct Node<'a, T> {
+    pub left: Option<Box<Node<'a, T>>>,
+    pub right: Option<Box<Node<'a, T>>>,
+    pub split_direction: Dimensions3,
     pub split_value: f64,
-    _values: [T; NODE_VALUE_COUNT],
+    pub values: Option<&'a [T]>, // has the number of values we actually have
     pub value_count: i32,
     pub max_radius: f64,
     pub com: Vect3,
@@ -23,19 +23,9 @@ pub struct Node<T> {
 
 }
 
-impl<T> Node<T> {
-    pub fn get_values(&self) -> &[T] {
-        &self._values[0..(self.value_count as usize)]
-    }
-
-    pub fn get_values_m(&mut self) -> &mut [T] {
-        &mut self._values[0..(self.value_count as usize)]
-    }
-}
-
-pub struct Tree<T: KDPoint> {
-    pub root: Option<Box<Node<T>>>,
-    pub dims: Vec<Dimensions>
+pub struct Tree<'a, T: KDPoint> {
+    pub root: Option<Box<Node<'a, T>>>,
+    pub dims: Vec<Dimensions3>
 }
 
 // struct TreeIterLocation<'a, T: KDPoint> {
@@ -45,14 +35,14 @@ pub struct Tree<T: KDPoint> {
 //     stack: Vec<&'a Node<T>>
 // }
 
-impl<T: KDPoint> Tree<T> {
+impl<'a, T: KDPoint> Tree<'a, T> {
     pub fn new(points: &mut [T]) -> Tree<T> {
         let dims = T::all_axis();
         let root = Tree::construct_level(&dims, points);
         Tree { root: root, dims: dims }
     }
 
-    fn get_max_dim_spread(dims: &Vec<Dimensions>, points: &[T]) -> (Dimensions, f64) {
+    fn get_max_dim_spread(dims: &Vec<Dimensions3>, points: &[T]) -> (Dimensions3, f64) {
         let mut best_split_direction = &dims[0];
                 let mut best_value = 0.;
     
@@ -67,29 +57,28 @@ impl<T: KDPoint> Tree<T> {
                 (*best_split_direction, best_value)
     }
 
-    fn construct_level(dims: &Vec<Dimensions>, points: &mut[T]) -> Option<Box<Node<T>>> {
+    fn construct_level(dims: &Vec<Dimensions3>, points: &'a mut[T]) -> Option<Box<Node<'a, T>>> {
         let len = points.len();
         if len == 0 {
             return None;
         }
 
         if len <= NODE_VALUE_COUNT {
-            let mut values: [T; NODE_VALUE_COUNT] = [T::ZERO; NODE_VALUE_COUNT];
-            let slice = &mut values[..len];
-            slice.copy_from_slice(points);
-            let max_radius = values.iter().map(|x| x.get_radius()).fold(0., |m, a| if a > m { a } else { m });
-            let mass: f64 = values.iter().map(|x| x.get_mass()).sum();
+            let points_fixed: &[T] = points;
 
-            let (_, width) = Tree::get_max_dim_spread(dims, points);
+            let max_radius = points_fixed.iter().map(|x| x.get_radius()).fold(0., |m, a| if a > m { a } else { m });
+            let mass: f64 = points_fixed.iter().map(|x| x.get_mass()).sum();
+
+            let (_, width) = Tree::get_max_dim_spread(dims, points_fixed);
             Some(Box::new(Node { 
                 left: None, 
                 right: None, 
-                split_direction: Dimensions::X, 
+                split_direction: Dimensions3::X, 
                 split_value: 0.,
-                _values: values,
+                values: Some(points_fixed),
                 value_count: len as i32,
                 max_radius: max_radius,
-                com: KDPoint::compute_com(points),
+                com: KDPoint::compute_com(points_fixed),
                 mass: mass,
                 width: width
             }))
@@ -97,7 +86,6 @@ impl<T: KDPoint> Tree<T> {
         else {
             let (split_direction, split_spread) = Tree::get_max_dim_spread(dims, points);
 
-            let values: [T; NODE_VALUE_COUNT] = [T::ZERO; NODE_VALUE_COUNT];
             points.sort_unstable_by(|a, b| a.cmp_on_dim(b, &split_direction));
 
             let max_radius = points.iter().map(|x| x.get_radius()).fold(0., |m, a| if a > m { a } else { m });
@@ -105,6 +93,7 @@ impl<T: KDPoint> Tree<T> {
             
             let median = T::get_value_in_dim(points, len/2, &split_direction);  //points[(points.len()/2)];
             
+            let com = KDPoint::compute_com(points);
             let (first, second) = points.split_at_mut(len/2);
             let left = Tree::construct_level(dims, first);
             let right = Tree::construct_level(dims, second);
@@ -114,10 +103,10 @@ impl<T: KDPoint> Tree<T> {
                 right: right, 
                 split_direction: split_direction, 
                 split_value: median,
-                _values: values,
+                values: None,
                 value_count: 0,
                 max_radius: max_radius,
-                com: KDPoint::compute_com(points),
+                com: com,
                 mass: mass,
                 width: split_spread
             }))
@@ -156,7 +145,9 @@ impl<T: KDPoint> Tree<T> {
                 print!("  ");
             }
             print!("points = ");
-            for v in n.get_values() {
+            // if this is called, n.value_count != 0
+            // if n.values is None, then something got messed up
+            for v in n.values.unwrap() {
                 v.print();
                 print!(", ");
             }
@@ -182,7 +173,7 @@ impl<T: KDPoint> Tree<T> {
                     let points_acc = if r.as_ref().value_count > 0 {
                         let mut curr = Vect3::ZERO;
     
-                        for pt in node.get_values() {
+                        for pt in node.values.unwrap_or(&[]) {
                             curr = curr + point.compute_acceleration_from(pt);
                         }
     

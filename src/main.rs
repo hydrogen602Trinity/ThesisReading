@@ -2,15 +2,17 @@ mod kdtree;
 mod kdpoint;
 mod util;
 mod integrate;
-mod kdpoint_ref;
+// mod kdpoint_ref;
+mod kdpoint_slice;
 
 use std::fs::File;
-use std::io::prelude::*;
+// use std::io::prelude::*;
 use std::path::Path;
 
 use kdpoint::PhysicsPoint3D;
 // use kdtree::Tree;
-use kdpoint_ref::{print_sys, system};
+// use kdpoint_ref::{print_sys, system};
+use kdpoint_slice::{print_sys};
 use integrate::integrate;
 // use kdpoint::KDPoint;
 
@@ -40,16 +42,17 @@ fn main() {
         Ok(file) => file,
     };
 
-    unsafe {
-        system.push(PhysicsPoint3D::new(0., 0., 0., 0., 0., 0., 1., 0.));
-        system.push(PhysicsPoint3D::new(1., 0., 0., 0., 1., 0., 1e-7, 0.));
+    let mut system = Vec::new();
 
-        println!("idk {}", system.len());
+    system.push(PhysicsPoint3D::new(0., 0., 0., 0., 0., 0., 1., 0.));
+    system.push(PhysicsPoint3D::new(1., 0., 0., 0., 1., 0., 1e-7, 0.));
 
-        print_sys(&system);
+    println!("idk {}", system.len());
 
-        integrate(h, std::f64::consts::PI, &mut file); //, &mut system);
+    print_sys(&system);
 
-        print_sys(&system);
-    }
+    integrate(h, std::f64::consts::PI, &mut file, &mut system); //, &mut system);
+
+    print_sys(&system);
+
 }

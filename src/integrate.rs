@@ -1,66 +1,63 @@
 use crate::kdtree::Tree;
-// use crate::kdpoint::PhysicsPoint3D;
-use crate::kdpoint_ref::{create_tree, system};
+use crate::kdpoint::{PhysicsPoint3D, KDPoint};
+use super::util::Vect3;
+// use crate::kdpoint_ref::{create_tree, system};
 use std::fs::File;
 use std::io::Write;
 
 
 // use std::f64::consts::PI;
 
-/**
- * Assuming acceleration is velocity independent
- */
-pub fn kick_step_once(tree: &Tree<i32>, h: f64) {
+/// Compute all accelerations
+pub fn compute_acceleration(tree: &Tree<PhysicsPoint3D>, system: &Vec<PhysicsPoint3D>, acc: &mut Vec<Vect3>) {
+    for (i, pt) in system.iter().enumerate() {
+        acc[i] = tree.compute_acceleration(pt);
+    }
+}
 
-    //let mut acc = Vec::new();
-    //acc.resize(particle_count, Vect3::ZERO);
-
+/// The function needs to have ownership of the tree
+/// as system cannot be mutated until the tree is destroyed
+pub fn kick_step_once(h: f64, system: &mut Vec<PhysicsPoint3D>, acc: &Vec<Vect3>) {
     // const h: f64 = 0.1;
     // let mut t = t_0;
 
-    unsafe {
-        for (i, p) in system.iter().enumerate() {
-            let a = tree.compute_acceleration(&(i as i32));
-            // a.println();
-            system[i].vel = system[i].vel + a * h;
-        }
-    
-        for (i, p) in system.iter().enumerate() {
-            system[i].pos = system[i].pos + system[i].vel * h;
-        }
+    for (i, p) in system.iter_mut().enumerate() {
+        p.vel = p.vel + acc[i] * h;
+        p.pos = p.pos + p.vel * h;
     }
-
-    // t += h;
-
-    // vector<Vect3>
 }
 
-pub fn integrate(h: f64, end: f64, info: &mut File) {
-    let sys = unsafe {
-        &system
-    };
+pub fn integrate(h: f64, end: f64, info: &mut File, system: &mut Vec<PhysicsPoint3D>) {
+    let mut acc = Vec::new();
+    acc.resize(system.len(), Vect3::ZERO);
 
-    let mut tree = create_tree(sys);
-    tree.printer();
+    // let mut tree = Tree::new(system);
+    // tree.printer();
+
 
     println!("end = {:.3}", end);
     let mut t = 0.;
     while t < end {
+        let tree = Tree::new(system);
         // println!("t = {:.3}", t);
-        kick_step_once(&tree, h);
-        tree = create_tree(sys);
+        compute_acceleration(&tree, &system, &mut acc);
+
+        kick_step_once(h, system, &acc);
+        
         t += h;
 
-        write!(info, "[");
-        for i in 0..sys.len() {
-            match write!(info, "[{:.e}, {:.e}, {:.e}]", sys[i].pos.x, sys[i].pos.y, sys[i].pos.z) {
+        write!(info, "[").unwrap();
+        for i in 0..system.len() {
+            match write!(info, "[{:.e}, {:.e}, {:.e}]", system[i].pos.x, system[i].pos.y, system[i].pos.z) {
                 Err(why) => panic!("couldn't write: {}", why),
                 Ok(_) => (),
             }
-            if i < sys.len() - 1 {
-                write!(info, ",");
+            if i < system.len() - 1 {
+                write!(info, ",").unwrap();
             }
         }
-        write!(info, "]\n");
+        write!(info, "]\n").unwrap();
+
+        // tree = Tree::new(system);
     }
 }

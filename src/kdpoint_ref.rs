@@ -29,24 +29,6 @@ pub fn print_sys(sys: &Vec<PhysicsPoint3D>) {
     }
 }
 
-// fn index(i: &i32) -> &PhysicsPoint3D {
-//     if i < &0 {
-//         &PhysicsPoint3D::ZERO
-//     }
-//     else {
-//         // &system[*i as usize]
-//         // &system[*i as usize]
-//         let x = system.get(*i as usize).unwrap();
-//         x
-//         // system.get(*i as usize).unwrap()
-//     }
-// }
-
-// pub fn build_tree() -> Tree<i32> {
-//     let r = 0..system.len();
-//     //Tree::new(r)
-
-// }
 
 fn index(i: &i32) -> PhysicsPoint3D {
     if i < &0 {
@@ -77,17 +59,17 @@ impl KDPoint for i32 {
         }
     }
 
-    fn spread_in_dim(data: &[Self], dim: &Dimensions) -> f64 {
+    fn spread_in_dim(data: &[Self], dim: &Dimensions3) -> f64 {
 
 
         let selector: fn(&i32) -> f64 = match dim {
-            Dimensions::X => {
+            Dimensions3::X => {
                 |pt| pos(pt).x
             },
-            Dimensions::Y => {
+            Dimensions3::Y => {
                 |pt| pos(pt).y
             },
-            Dimensions::Z => {
+            Dimensions3::Z => {
                 |pt| pos(pt).z
             },
             _ => panic!("This Tree is 3D")
@@ -98,13 +80,13 @@ impl KDPoint for i32 {
         max - min
     }
 
-    fn cmp_on_dim(&self, other: &Self, dim: &Dimensions) -> std::cmp::Ordering {
+    fn cmp_on_dim(&self, other: &Self, dim: &Dimensions3) -> std::cmp::Ordering {
         let self_data = pos(self);
         let other_data = pos(other);
         let (s, o) = match dim {
-            Dimensions::X => (self_data.x, other_data.x),
-            Dimensions::Y => (self_data.y, other_data.y),
-            Dimensions::Z => (self_data.z, other_data.z),
+            Dimensions3::X => (self_data.x, other_data.x),
+            Dimensions3::Y => (self_data.y, other_data.y),
+            Dimensions3::Z => (self_data.z, other_data.z),
             _ => panic!("This Tree is 3D")
         };
 
@@ -119,12 +101,12 @@ impl KDPoint for i32 {
         }
     }
 
-    fn get_value_in_dim(data: &[Self], index: usize, dim: &Dimensions) -> f64 {
+    fn get_value_in_dim(data: &[Self], index: usize, dim: &Dimensions3) -> f64 {
         let pos_data = pos(&data[index]);
         match dim {
-            Dimensions::X => pos_data.x,
-            Dimensions::Y => pos_data.y,
-            Dimensions::Z => pos_data.z,
+            Dimensions3::X => pos_data.x,
+            Dimensions3::Y => pos_data.y,
+            Dimensions3::Z => pos_data.z,
             _ => panic!("This Tree is 3D")
         }
     }
@@ -145,8 +127,8 @@ impl KDPoint for i32 {
 
     const ZERO: Self = -1;
 
-    fn all_axis() -> Vec<Dimensions> {
-        vec![Dimensions::X, Dimensions::Y, Dimensions::Z]
+    fn all_axis() -> Vec<Dimensions3> {
+        vec![Dimensions3::X, Dimensions3::Y, Dimensions3::Z]
     }
 
     fn get_radius(&self) -> f64 {
@@ -200,3 +182,4 @@ impl KDPoint for i32 {
         }
     }
 }
+
