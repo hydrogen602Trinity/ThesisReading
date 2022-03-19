@@ -26,9 +26,7 @@ pub trait Integrator {
         while t < period {
             t += setup.dt;
 
-            for p in setup.get_particles() {
-                println!("{:?}", p);
-            }
+            // println!("{:?}", setup.get_particles()[0]);
 
             Self::step(setup);
 
@@ -90,7 +88,7 @@ impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
     fn compute_accelerations(&self) -> Vec<Vect3> {
         // global forces
         let mut acc: Vec<Vect3> = self.sys.particles.iter().map(|p| self.global_force.force(p) / p.m).collect();
-        println!("{:?}", acc);
+        // println!("{:?}", acc);
 
         for i in 0..(self.sys.particles.len()) {
             for j in (i+1)..(self.sys.particles.len()) {
