@@ -4,40 +4,7 @@ use std::io::Write;
 
 pub mod forces;
 pub mod no_explode;
-
-
-// Forces
-
-pub trait GlobalForce {
-    // a force just depedent on one particle, like a global field
-    fn force(&self, p: &PhysicsPoint3D) -> Vect3;
-}
-
-/// A well with a linear slope to its center
-/// U(r) = ar for r > 0
-/// F(r) = -dU/dr = -a * |r_vect - center|
-/// r = |r_vect - center|
-/// dimensional analysis [Force] = -a * [length] => a = [Force/length] = N/m
-/// so coeff is Force/length
-pub struct LinearWell { center: Vect3, coeff: f64 }
-
-impl LinearWell {
-    pub fn new(center: Vect3, coeff: f64) -> Self {
-        Self { center, coeff }
-    }
-}
-
-impl GlobalForce for LinearWell {
-    fn force(&self, p: &PhysicsPoint3D) -> Vect3 {
-        let dir = -(p.pos - self.center).norm();
-        dir * self.coeff
-    }
-}
-
-
-pub trait PairwiseSymmetricForce {
-    fn force(&self, p: &PhysicsPoint3D, other: &PhysicsPoint3D) -> (Vect3, Vect3);
-}
+pub use forces::*;
 
 
 // Integrators
@@ -59,6 +26,10 @@ pub trait Integrator {
         while t < period {
             t += setup.dt;
 
+            for p in setup.get_particles() {
+                println!("{:?}", p);
+            }
+
             Self::step(setup);
 
             let p = setup.get_particles();
@@ -70,6 +41,8 @@ pub trait Integrator {
                 write!(file, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
             }
             writeln!(file, "").expect("");
+
+            // panic!("yeet");
         }
 
     } 
@@ -117,6 +90,7 @@ impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
     fn compute_accelerations(&self) -> Vec<Vect3> {
         // global forces
         let mut acc: Vec<Vect3> = self.sys.particles.iter().map(|p| self.global_force.force(p) / p.m).collect();
+        println!("{:?}", acc);
 
         for i in 0..(self.sys.particles.len()) {
             for j in (i+1)..(self.sys.particles.len()) {

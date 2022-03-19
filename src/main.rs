@@ -75,18 +75,25 @@ fn main() {
     //     PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.)
     // ];
 
-    for i in 0..40 {
-        particles.push(PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.));
+    const RHO: f64 = 0.88;
+
+    let compute_mass = |r: f64| RHO * r * r * r * 4./3. * std::f64::consts::PI;
+
+    let r = 1e-7;
+    for i in 0..5 { //40 {
+
+        particles.push(PhysicsPoint3D::from_random_2d(c, 20. * r, 1000. * r, compute_mass(r), r));
     }
+    
+    // mass / 2 cause reduced mass
+    let (b, k) = no_explode::compute::b_and_k3(1e-5, compute_mass(r)/2., r);
+    println!("k = {:e}, b = {:e}", k, b);
 
+    let k_force = DampedSpring::new(k, b); //(1., 0.1);
 
-    let (k, b) = no_explode::compute::b_and_k3(5., 1., 1.);
-
-    let k_force = DampedSpring::new(1., 0.1);
-
-    let dt = 0.001;
+    let dt = 0.0001;
     let mut setup = idk::Setup::new(
-        LinearWell::new(Vect3::ZERO, 2.), 
+        LinearWell::new(Vect3::ZERO, 1e-20), 
         k_force, 
         particles, 
         dt);

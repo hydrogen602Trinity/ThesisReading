@@ -12,10 +12,14 @@ screen = pygame.display.set_mode([500, 500])
 last_data = ''
 def file_reader():
     global running, last_data
+    updates_per_sec = 50
     with open('pipe', buffering=1) as f:
         while True:
-            sleep(0.0001)
+            sleep(1/updates_per_sec)
             last_data = f.readline()
+            # print(last_data)
+            # import sys
+            # sys.exit()
             if last_data == 'END' or last_data == '':
                 break
 
@@ -28,6 +32,7 @@ th.start()
 # Run until the user asks to quit
 running = True
 while running:
+    # break # meh
 
     # Did the user click the window close button?
     for event in pygame.event.get():
@@ -41,16 +46,20 @@ while running:
         continue
 
     import itertools
+
+    r = 1e-7
+    scale = 1/r * 5
     
-    colors = [(0, 0, 255), (255, 0, 0), (0, 255, 0), (255, 255, 0)]
-    for c, particle in zip(itertools.repeat((0, 0, 255)), last_data.split('|')):
-        x, y, z = (float(n)*5 for n in particle.split(','))
+    colors = [(0, 0, 255), (255, 0, 0), (0, 255, 0), (255, 255, 0), (0, 255, 255)]
+    for c, particle in zip(itertools.cycle(colors), last_data.split('|')):
+        x, y, z = (float(n)*scale for n in particle.split(','))
 
         # Draw a solid blue circle in the center
         pygame.draw.circle(screen, c, (x + 250, 250 - y), 5)
 
     # Flip the display
     pygame.display.flip()
+
 
 # Done! Time to quit.
 pygame.quit()
