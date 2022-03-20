@@ -54,9 +54,13 @@
 //     }
 // }
 
+use std::{path::Path, fs::File, io::Write};
+
 use idk::{LinearWell, KickStep, Integrator, forces::DampedSpring, no_explode};
 use kdpoint::PhysicsPoint3D;
 use util::Vect3;
+
+use crate::{idk::Setup, util::radius_to_mass};
 
 mod idk;
 mod kdpoint;
@@ -66,27 +70,13 @@ mod util;
 fn main() {
     let c = Vect3::ZERO;
 
-    let mut particles: Vec<PhysicsPoint3D> = Vec::new();
-
-    // let particles = vec![
-    //     PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.),
-    //     PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.),
-    //     PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.),
-    //     PhysicsPoint3D::from_random_2d(c, 20., 5., 1., 1.)
-    // ];
-
     const RHO: f64 = 0.88;
 
-    let compute_mass = |r: f64| RHO * r * r * r * 4./3. * std::f64::consts::PI;
-
     let r = 1e-7;
-    for i in 0..40 {
+    let particles: Vec<PhysicsPoint3D> = (0..40).map(|_| PhysicsPoint3D::from_random_2d(c, 200. * r, 10000. * r, radius_to_mass(r, RHO), r)).collect();
 
-        particles.push(PhysicsPoint3D::from_random_2d(c, 200. * r, 10000. * r, compute_mass(r), r));
-    }
-    
     // mass / 2 cause reduced mass
-    let (b, k) = no_explode::compute::b_and_k3(1e-5, compute_mass(r), r);
+    let (b, k) = no_explode::compute::b_and_k(1e-5, radius_to_mass(r, RHO), r);
     println!("k = {:e}, b = {:e}", k, b);
 
     let k_force = DampedSpring::new(k, b); //(1., 0.1);
@@ -98,5 +88,27 @@ fn main() {
         particles, 
         dt);
 
-    KickStep::simulate(&mut setup, 1000.);
+    let logger = {
+        let path = Path::new("pipe");
+        let display = path.display();
+
+        let mut file = match File::create(&path) {
+            Err(why) => panic!("couldn't create {}: {}", display, why),
+            Ok(file) => file,
+        };
+
+        move |setup: &Setup<_, _>| {
+            let p = setup.get_particles();
+            for (i, elem) in p.iter().enumerate() {
+                if i > 0 {
+                    write!(file, "|").expect("");
+                }
+
+                write!(file, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
+            }
+            writeln!(file, "").expect("");
+        }
+    };
+
+    KickStep::simulate(&mut setup, 1000., Some(logger));
 }

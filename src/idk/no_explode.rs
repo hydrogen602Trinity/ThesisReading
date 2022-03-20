@@ -39,7 +39,7 @@ pub mod compute {
     }
 
     // returns (b, k)
-    pub fn b_and_k3(v_0: f64, m: f64, radius: f64) -> (f64, f64) {
+    pub fn b_and_k(v_0: f64, m: f64, radius: f64) -> (f64, f64) {
         b_and_k2(v_0, m, radius * PEN_RATIO_DEFAULT)
     }
 }
@@ -83,8 +83,8 @@ pub mod schwartz {
         -2. * (k * m / (PI * PI + lne * lne)).sqrt() * lne
     }
 
-    pub fn b_and_k(v_max: f64, m: f64, r: f64) -> (f64, f64) {
-        let k = k(m, v_max, r * MAX_PEN_RATIO).abs();
+    pub fn b_and_k(v_max: f64, m: f64, radius: f64) -> (f64, f64) {
+        let k = k(m, v_max, radius * MAX_PEN_RATIO).abs();
         let c = c(k, m).abs();
         (c, k)
     }

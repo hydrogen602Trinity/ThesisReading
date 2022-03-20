@@ -113,3 +113,8 @@ helper!(Vect3, &Vect3);
 helper!(&Vect3, &Vect3);
 helper!(Vect3);
 helper!(&Vect3);
+
+
+pub fn radius_to_mass(r: f64, rho: f64) -> f64 {
+    rho * r * r * r * 4./3. * std::f64::consts::PI
+}

@@ -1,6 +1,5 @@
 use crate::{kdpoint::PhysicsPoint3D, util::Vect3};
-use std::{iter::zip, fs::File, path::Path};
-use std::io::Write;
+use std::iter::zip;
 
 pub mod forces;
 pub mod no_explode;
@@ -12,16 +11,10 @@ pub use forces::*;
 pub trait Integrator {
     fn step<F: GlobalForce, S: PairwiseSymmetricForce>(setup: &mut Setup<F, S>);
 
-    fn simulate<F: GlobalForce, S: PairwiseSymmetricForce>(setup: &mut Setup<F, S>, period: f64) {
+    fn simulate<F, S, L>(setup: &mut Setup<F, S>, period: f64, mut logger: Option<L>) 
+        where F: GlobalForce, S: PairwiseSymmetricForce, L: FnMut(&Setup<F,S>) 
+    {
         let mut t = 0.;
-
-        let path = Path::new("pipe");
-        let display = path.display();
-
-        let mut file = match File::create(&path) {
-            Err(why) => panic!("couldn't create {}: {}", display, why),
-            Ok(file) => file,
-        };
 
         while t < period {
             t += setup.dt;
@@ -30,17 +23,9 @@ pub trait Integrator {
 
             Self::step(setup);
 
-            let p = setup.get_particles();
-            for (i, elem) in p.iter().enumerate() {
-                if i > 0 {
-                    write!(file, "|").expect("");
-                }
-
-                write!(file, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
+            if let Some(ref mut log) = logger {
+                log(setup);
             }
-            writeln!(file, "").expect("");
-
-            // panic!("yeet");
         }
 
     } 
