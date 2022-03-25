@@ -1,9 +1,13 @@
 use crate::{kdpoint::PhysicsPoint3D, util::Vect3};
-use std::iter::zip;
+use std::{iter::zip, cmp::Reverse};
 
 pub mod forces;
 pub mod no_explode;
+mod util;
 pub use forces::*;
+use priority_queue::PriorityQueue;
+
+use self::util::{Index, Time};
 
 
 // Integrators
@@ -52,6 +56,56 @@ impl Integrator for KickStep {
 }
 
 
+pub struct KickStepPQCollision();
+
+impl Integrator for KickStepPQCollision {
+    fn step<F: GlobalForce, S: PairwiseSymmetricForce>(setup: &mut Setup<F, S>) {
+        let glob_acc = setup.compute_global_acceleration();
+
+        let sub_dt = setup.dt / 100.;
+
+        let mut pq: PriorityQueue<(Index, Index), Reverse<Time>> = PriorityQueue::new();
+
+        // step velocities for global force
+        for (p, a) in zip(&mut setup.sys.particles, glob_acc) {
+            p.vel += a * setup.dt;
+        }
+
+        // find collisions
+        for (i, ei) in setup.sys.particles.iter().enumerate() {
+            for (j, ej) in setup.sys.particles.iter().enumerate().skip(i+1) {
+                let max_distance = ei.vel.mag() * setup.dt + ej.vel.mag() * setup.dt;
+                if (ei.pos - ej.pos).mag() < max_distance {
+                    // could collide?
+
+                    let t: Time = sub_dt.into();
+                    pq.push((i.into(), j.into()), t.into());
+                }
+            }
+        }
+
+        loop {
+            let ((i, j), t): ((Index, Index), Time) = match pq.pop() {
+                Some((indices, time)) => (indices, time.into()),
+                None => break
+            };
+
+            // particles need to know last updated!
+
+            // update to current time
+
+            // when to push to pq again?
+        }
+    
+        // step -> integrate x
+    
+        for p in &mut setup.sys.particles {
+            p.pos += p.vel * setup.dt;
+        }
+    }
+}
+
+
 // System
 
 pub struct Setup<F: GlobalForce, S: PairwiseSymmetricForce> {
@@ -70,6 +124,12 @@ impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
 }
 
 impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
+
+    /// For forces that don't depend on other particles/ won't change much
+    fn compute_global_acceleration(&self) -> Vec<Vect3> {
+        self.sys.particles.iter().map(|p| self.global_force.force(p) / p.m).collect()
+    }
+
     fn compute_accelerations(&self) -> Vec<Vect3> {
         // global forces
         let mut acc: Vec<Vect3> = self.sys.particles.iter().map(|p| self.global_force.force(p) / p.m).collect();
