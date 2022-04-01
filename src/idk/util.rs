@@ -3,6 +3,14 @@
 #[derive(Debug, PartialEq, PartialOrd)]
 pub struct Time(f64);
 
+impl Deref for Time {
+    type Target = f64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl From<f64> for Time {
     fn from(f: f64) -> Self {
         assert!(f.is_finite(), "time should be real");
@@ -41,6 +49,14 @@ impl Ord for Time {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Index(usize);
 
+impl Deref for Index {
+    type Target = usize;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl From<usize> for Index {
     fn from(i: usize) -> Self {
         Self(i)
@@ -61,4 +77,4 @@ impl From<Index> for usize {
 //     }
 // }
 
-use std::cmp::Reverse;
+use std::{cmp::Reverse, ops::Deref};

@@ -60,14 +60,20 @@ use idk::{LinearWell, KickStep, Integrator, forces::DampedSpring, no_explode};
 use kdpoint::PhysicsPoint3D;
 use util::Vect3;
 
-use crate::{idk::Setup, util::radius_to_mass};
+use crate::{idk::{Setup, KickStepPQCollision}, util::radius_to_mass};
 
 mod idk;
 mod kdpoint;
 mod util;
 
+#[derive(Debug)]
+struct A(i32);
 
 fn main() {
+
+    test();
+    return;
+
     let c = Vect3::ZERO;
 
     const RHO: f64 = 0.88;
@@ -111,6 +117,64 @@ fn main() {
     };
 
     KickStep::simulate(&mut setup, 1000., Some(logger));
+}
+
+
+fn test() {
+    const RHO: f64 = 0.88;
+
+    let r = 1e-7;
+    let particles: Vec<PhysicsPoint3D> = vec![
+        PhysicsPoint3D::new(1.8e-10, 0., 0., 0., 0., 0., radius_to_mass(r, RHO), r),
+        PhysicsPoint3D::new(-1.8e-10, 0., 0., 0., 0., 0., radius_to_mass(r, RHO), r)
+    ];
+
+    // mass / 2 cause reduced mass
+    let (b, k) = no_explode::compute::b_and_k(2.3e-4, radius_to_mass(r, RHO), r);
+    println!("k = {:e}, b = {:e}", k, b);
+
+    let k_force = DampedSpring::new(k, b); //(1., 0.1);
+
+    let dt = 0.0001;
+    let mut setup = idk::Setup::new(
+        LinearWell::new(Vect3::ZERO, 1e-21), 
+        k_force, 
+        particles, 
+        dt);
+
+    let logger = {
+        let path = Path::new("pipe");
+        let display = path.display();
+
+        let mut file = match File::create(&path) {
+            Err(why) => panic!("couldn't create {}: {}", display, why),
+            Ok(file) => file,
+        };
+
+        let mut file2 = match File::create("data.out") {
+            Err(why) => panic!("couldn't create {}: {}", display, why),
+            Ok(file) => file,
+        };
+
+        move |setup: &Setup<_, _>| {
+            let p = setup.get_particles();
+            for (i, elem) in p.iter().enumerate() {
+                if i > 0 {
+                    write!(file, "|").expect("");
+                    write!(file2, ",").unwrap();
+                }
+
+                write!(file, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
+                write!(file2, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
+            }
+            writeln!(file, "").expect("");
+            writeln!(file2, "").expect("");
+        }
+    };
+
+    // KickStepPQCollision // 1000
+    KickStep::simulate(&mut setup, 0.002, Some(logger));
+
 }
 
 

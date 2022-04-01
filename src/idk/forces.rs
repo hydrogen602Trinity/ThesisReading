@@ -8,7 +8,13 @@ pub trait GlobalForce {
 }
 
 pub trait PairwiseSymmetricForce {
-    fn force(&self, p: &PhysicsPoint3D, other: &PhysicsPoint3D) -> (Vect3, Vect3);
+    fn acceleration(&self, p: &PhysicsPoint3D, other: &PhysicsPoint3D) -> (Vect3, Vect3);
+
+    fn force(&self, p: &PhysicsPoint3D, other: &PhysicsPoint3D) -> (Vect3, Vect3) {
+        let (ai, aj) = self.acceleration(p, other);
+        // F = ma
+        (ai * p.m, aj * other.m)
+    }
 }
 
 
@@ -16,8 +22,8 @@ pub trait PairwiseSymmetricForce {
 /// U(r) = ar for r > 0
 /// F(r) = -dU/dr = -a * |r_vect - center|
 /// r = |r_vect - center|
-/// dimensional analysis [Force] = -a * [length] => a = [Force/length] = N/m
-/// so coeff is Force/length
+/// dimensional analysis [Force] = -a * r hat => a = [Force] = N
+/// so coeff is Force
 pub struct LinearWell { center: Vect3, coeff: f64 }
 
 impl LinearWell {
@@ -47,7 +53,7 @@ impl DampedSpring {
 
 impl PairwiseSymmetricForce for DampedSpring {
 
-    fn force(&self, p: &crate::kdpoint::PhysicsPoint3D, other: &crate::kdpoint::PhysicsPoint3D) -> (Vect3, Vect3) {
+    fn acceleration(&self, p: &crate::kdpoint::PhysicsPoint3D, other: &crate::kdpoint::PhysicsPoint3D) -> (Vect3, Vect3) {
         let rji = other.pos - p.pos; // relative pos
         let vji = other.vel - p.vel; // relative vel
 

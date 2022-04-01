@@ -66,6 +66,8 @@ impl Integrator for KickStepPQCollision {
 
         let mut pq: PriorityQueue<(Index, Index), Reverse<Time>> = PriorityQueue::new();
 
+        let mut last_updated_rel = glob_acc.iter().map(|_| 0.).collect::<Vec<_>>();
+
         // step velocities for global force
         for (p, a) in zip(&mut setup.sys.particles, glob_acc) {
             p.vel += a * setup.dt;
@@ -75,7 +77,7 @@ impl Integrator for KickStepPQCollision {
         for (i, ei) in setup.sys.particles.iter().enumerate() {
             for (j, ej) in setup.sys.particles.iter().enumerate().skip(i+1) {
                 let max_distance = ei.vel.mag() * setup.dt + ej.vel.mag() * setup.dt;
-                if (ei.pos - ej.pos).mag() < max_distance {
+                if (ei.pos - ej.pos).mag() < max_distance * 1.5 {
                     // could collide?
 
                     let t: Time = sub_dt.into();
@@ -84,23 +86,49 @@ impl Integrator for KickStepPQCollision {
             }
         }
 
+        
         loop {
-            let ((i, j), t): ((Index, Index), Time) = match pq.pop() {
+            let ((i, j), mut t): ((Index, Index), Time) = match pq.pop() {
                 Some((indices, time)) => (indices, time.into()),
                 None => break
             };
 
+            // if t is beyond the timestep, set it to the timestep
+            // and say over_extends_end = true
+            let over_extends_end = if *t > setup.dt {
+                t = setup.dt.into();
+                true
+            }
+            else {
+                false
+            };
+
             // particles need to know last updated!
+            let (last_t_i, last_t_j) = (last_updated_rel[*i], last_updated_rel[*j]);
+
+            // determine and integrate pairwise force
+            let (ai, aj) = setup.pairwise_force.acceleration(
+                &setup.sys.particles[*i], 
+                &setup.sys.particles[*j]);
+
+            setup.sys.particles[*i].vel += ai * (*t - last_t_i);
+            setup.sys.particles[*j].vel += aj * (*t - last_t_j);
 
             // update to current time
+            let vi = setup.sys.particles[*i].vel;
+            setup.sys.particles[*i].pos += vi * (*t - last_t_i);
 
-            // when to push to pq again?
-        }
-    
-        // step -> integrate x
-    
-        for p in &mut setup.sys.particles {
-            p.pos += p.vel * setup.dt;
+            let vj = setup.sys.particles[*j].vel;
+            setup.sys.particles[*j].pos += vj * (*t - last_t_j);
+
+            last_updated_rel[*i] = *t;
+            last_updated_rel[*j] = *t;
+
+            // when to push to pq again? - if not at end
+            if !over_extends_end {
+                let t2: Time = (*t + sub_dt).into();
+                pq.push((i, j), t2.into());
+            }
         }
     }
 }
@@ -137,8 +165,8 @@ impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
 
         for i in 0..(self.sys.particles.len()) {
             for j in (i+1)..(self.sys.particles.len()) {
-                
-                let (ai, aj) = self.pairwise_force.force(&self.sys.particles[i], &self.sys.particles[j]);
+
+                let (ai, aj) = self.pairwise_force.acceleration(&self.sys.particles[i], &self.sys.particles[j]);
 
                 acc[i] += ai;
                 acc[j] += aj;
