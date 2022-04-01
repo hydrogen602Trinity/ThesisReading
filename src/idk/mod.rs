@@ -46,6 +46,8 @@ impl Integrator for KickStep {
         for (p, a) in zip(&mut setup.sys.particles, acc) {
             p.vel += a * setup.dt;
         }
+
+        //println!("x={}, vx={}", setup.sys.particles[0].pos.x, setup.sys.particles[0].vel.x);
     
         // step -> integrate x
     
@@ -77,7 +79,7 @@ impl Integrator for KickStepPQCollision {
         for (i, ei) in setup.sys.particles.iter().enumerate() {
             for (j, ej) in setup.sys.particles.iter().enumerate().skip(i+1) {
                 let max_distance = ei.vel.mag() * setup.dt + ej.vel.mag() * setup.dt;
-                if (ei.pos - ej.pos).mag() < max_distance * 1.5 {
+                if (ei.pos - ej.pos).mag() - ei.r - ej.r < max_distance * 1.5 {
                     // could collide?
 
                     let t: Time = sub_dt.into();
@@ -129,6 +131,11 @@ impl Integrator for KickStepPQCollision {
                 let t2: Time = (*t + sub_dt).into();
                 pq.push((i, j), t2.into());
             }
+        }
+
+        for (i, last_t) in last_updated_rel.into_iter().enumerate() {
+            let v = setup.sys.particles[i].vel;
+            setup.sys.particles[i].pos += v * (setup.dt - last_t);
         }
     }
 }

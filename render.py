@@ -64,4 +64,7 @@ while running:
 
 # Done! Time to quit.
 pygame.quit()
-th.join()
+
+from sys import exit
+exit()
+# th.join()

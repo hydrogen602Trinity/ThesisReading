@@ -125,17 +125,22 @@ fn test() {
 
     let r = 1e-7;
     let particles: Vec<PhysicsPoint3D> = vec![
-        PhysicsPoint3D::new(1.8e-10, 0., 0., 0., 0., 0., radius_to_mass(r, RHO), r),
-        PhysicsPoint3D::new(-1.8e-10, 0., 0., 0., 0., 0., radius_to_mass(r, RHO), r)
+        PhysicsPoint3D::new(1.5e-7, 0., 0., 0., 0., 0., radius_to_mass(r, RHO), r),
+        PhysicsPoint3D::new(-1.5e-7, 0., 0., 0., 0., 0., radius_to_mass(r, RHO), r)
     ];
 
     // mass / 2 cause reduced mass
-    let (b, k) = no_explode::compute::b_and_k(2.3e-4, radius_to_mass(r, RHO), r);
+
+    // 0.0000008655284142600487
+    // 2.3e-4
+    // 0.00016
+    let (b, k) = no_explode::compute::b_and_k(0.00016, radius_to_mass(r, RHO), r);
     println!("k = {:e}, b = {:e}", k, b);
 
     let k_force = DampedSpring::new(k, b); //(1., 0.1);
 
-    let dt = 0.0001;
+    // 0.0001 works with KickStepPQCollision, but not KickStep
+    let dt = 0.0001; //0.0001;
     let mut setup = idk::Setup::new(
         LinearWell::new(Vect3::ZERO, 1e-21), 
         k_force, 
@@ -171,8 +176,9 @@ fn test() {
             writeln!(file2, "").expect("");
         }
     };
-
-    // KickStepPQCollision // 1000
+    
+    // 1000
+    //KickStep::simulate(&mut setup, 0.005, Some(logger));
     KickStep::simulate(&mut setup, 0.002, Some(logger));
 
 }

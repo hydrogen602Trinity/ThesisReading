@@ -14,8 +14,8 @@ with open('data.out') as f:
 import matplotlib.pyplot as plt
 
 # rescale to radii
-data1 = [d / r for d in data1]
-data2 = [d / r for d in data2]
+data1 = [d / r for d in data1 if abs(d / r) < 10 ]
+data2 = [d / r for d in data2 if abs(d / r) < 10]
 
 plt.plot(data1, 'bx')
 plt.plot([x + 1 for x in data1], 'b--')
@@ -24,4 +24,6 @@ plt.plot([x - 1 for x in data1], 'b--')
 plt.plot(data2, 'rx')
 plt.plot([x + 1 for x in data2], 'r--')
 plt.plot([x - 1 for x in data2], 'r--')
+
+plt.ylabel(f'x-coord in radii ({r})')
 plt.show()
