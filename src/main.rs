@@ -71,18 +71,18 @@ struct A(i32);
 
 fn main() {
 
-    test();
-    return;
+    // test();
+    // return;
 
     let c = Vect3::ZERO;
 
     const RHO: f64 = 0.88;
 
     let r = 1e-7;
-    let particles: Vec<PhysicsPoint3D> = (0..40).map(|_| PhysicsPoint3D::from_random_2d(c, 200. * r, 10000. * r, radius_to_mass(r, RHO), r)).collect();
+    let particles: Vec<PhysicsPoint3D> = (0..40).map(|_| PhysicsPoint3D::from_random_2d(c, 15. * r, 2. * r, radius_to_mass(r, RHO), r)).collect();
 
     // mass / 2 cause reduced mass
-    let (b, k) = no_explode::compute::b_and_k(1e-5, radius_to_mass(r, RHO), r);
+    let (b, k) = no_explode::compute::b_and_k(0.00016, radius_to_mass(r, RHO), r);
     println!("k = {:e}, b = {:e}", k, b);
 
     let k_force = DampedSpring::new(k, b); //(1., 0.1);
@@ -116,7 +116,7 @@ fn main() {
         }
     };
 
-    KickStep::simulate(&mut setup, 1000., Some(logger));
+    KickStepPQCollision::simulate(&mut setup, 1000., Some(logger));
 }
 
 
@@ -176,10 +176,10 @@ fn test() {
             writeln!(file2, "").expect("");
         }
     };
-    
+
     // 1000
     //KickStep::simulate(&mut setup, 0.005, Some(logger));
-    KickStep::simulate(&mut setup, 0.002, Some(logger));
+    KickStepPQCollision::simulate(&mut setup, 0.002, Some(logger));
 
 }
 
