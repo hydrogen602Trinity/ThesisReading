@@ -25,6 +25,16 @@ impl Vect3 {
         (self * self).sqrt()
     }
 
+    pub fn cross(&self, other: &Self) -> Vect3 {
+        // [ a2 b3 - a3 b2 , a3 b1 - a1 b3 , a1 b2 - a2 b1 ]
+
+        Vect3::new( 
+            self.y * other.z - self.z * other.y,
+            self.z * other.x - self.x * other.z,
+            self.x * other.y - self.y * other.x
+        )
+    }
+
     pub fn print(&self) {
         print!("<{:.2e} {:.2e} {:.2e}>", self.x, self.y, self.z);
     }

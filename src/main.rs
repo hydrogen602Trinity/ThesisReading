@@ -66,9 +66,6 @@ mod idk;
 mod kdpoint;
 mod util;
 
-#[derive(Debug)]
-struct A(i32);
-
 fn main() {
 
     // test();
@@ -103,6 +100,14 @@ fn main() {
             Ok(file) => file,
         };
 
+        let path2 = Path::new("angular.csv");
+        let display2 = path.display();
+
+        let mut file2 = match File::create(&path2) {
+            Err(why) => panic!("couldn't create {}: {}", display2, why),
+            Ok(file) => file,
+        };
+
         move |setup: &Setup<_, _>| {
             let p = setup.get_particles();
             for (i, elem) in p.iter().enumerate() {
@@ -111,8 +116,15 @@ fn main() {
                 }
 
                 write!(file, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
+
             }
             writeln!(file, "").expect("");
+
+            let ang = setup.angular_momentum();
+            writeln!(file2, "{}, {}, {}", ang.x, ang.y, ang.z).unwrap();
+
+            let vect = setup.angular_momentum();
+            println!("{}, {}, {}", vect.x, vect.y, vect.z);
         }
     };
 

@@ -182,6 +182,21 @@ impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
 
         acc
     }
+
+    pub fn center_of_mass(&self) -> Vect3 {
+        self.sys.particles.iter().map(|p| p.pos).fold(Vect3::ZERO, |a,b| a + b) / self.sys.particles.len() as f64
+    }
+
+    pub fn angular_momentum(&self) -> Vect3 {
+        // L = r x p
+        // p = m v 
+        // => L = r x m v
+
+        let com = self.center_of_mass();
+
+        let L = self.sys.particles.iter().map(|p| (p.pos - com).cross(&(p.vel * p.m)));
+        L.fold(Vect3::ZERO, |a, b| a + b)
+    }
 }
 
 struct System {
