@@ -76,13 +76,16 @@ fn main() {
     const RHO: f64 = 0.88;
 
     let r = 1e-7;
-    let particles: Vec<PhysicsPoint3D> = (0..40).map(|_| PhysicsPoint3D::from_random_2d(c, 15. * r, 2. * r, radius_to_mass(r, RHO), r)).collect();
+    //let particles: Vec<PhysicsPoint3D> = (0..40).map(|_| PhysicsPoint3D::from_random_2d(c, 15. * r, 2. * r, radius_to_mass(r, RHO), r)).collect();
+    let particles = vec![
+        PhysicsPoint3D::new(10. * r, 1. * r, 0., 0., 0., 0., radius_to_mass(r, RHO), r),
+        PhysicsPoint3D::new(-10. * r, -1. * r, 0., 0., 0., 0., radius_to_mass(r, RHO), r)];
 
     // mass / 2 cause reduced mass
     let (b, k) = no_explode::compute::b_and_k(0.00016, radius_to_mass(r, RHO), r);
     println!("k = {:e}, b = {:e}", k, b);
 
-    let k_force = DampedSpring::new(k, b); //(1., 0.1);
+    let k_force = DampedSpring::new(k, b); //b); //(1., 0.1);
 
     let dt = 0.0001;
     let mut setup = idk::Setup::new(
@@ -103,6 +106,14 @@ fn main() {
         let path2 = Path::new("angular.csv");
         let display2 = path.display();
 
+        let path3 = Path::new("data.out");
+        let display3 = path3.display();
+
+        let mut file3 = match File::create(&path3) {
+            Err(why) => panic!("couldn't create {}: {}", display3, why),
+            Ok(file) => file,
+        };
+
         let mut file2 = match File::create(&path2) {
             Err(why) => panic!("couldn't create {}: {}", display2, why),
             Ok(file) => file,
@@ -120,11 +131,15 @@ fn main() {
             }
             writeln!(file, "").expect("");
 
-            let ang = setup.angular_momentum();
+            let ang = setup.center_of_mass();
             writeln!(file2, "{}, {}, {}", ang.x, ang.y, ang.z).unwrap();
 
-            let vect = setup.angular_momentum();
-            println!("{}, {}, {}", vect.x, vect.y, vect.z);
+            let p = setup.get_particles();
+
+            writeln!(file3, "{}, {}, {}, {}, {}, {}", p[0].pos.x, p[0].pos.y, p[0].pos.z, p[1].pos.x, p[1].pos.y, p[1].pos.z).unwrap();
+
+            // let vect = setup.angular_momentum();
+            // println!("{}, {}, {}", vect.x, vect.y, vect.z);
         }
     };
 
