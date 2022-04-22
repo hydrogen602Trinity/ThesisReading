@@ -14,7 +14,7 @@
 // use integrate::integrate;
 // // use kdpoint::KDPoint;
 
-// fn main() {    
+// fn main() {
 //     // let mut x: [f64; 50] = [26.21, 9.78, 26.18, 27.38, 8.59, 16.97, 0.31, 18.57, 21.27, 28.89, 28.43, 25.99, 6.74, 18.69, 0.3, 2.72, 14.48, 12.52, 9.49, 7.1, 15.57, 22.23, 17.85, 23.63, 26.12, 10.17, 0.81, 2.42, 0.98, 24.66, 28.93, 11.32, 3.19, 25.29, 6.91, 28.45, 4.41, 12.77, 24.46, 3.34, 4.54, 11.03, 27.08, 2.67, 22.7, 11.12, 14.25, 27.21, 18.1, 17.26];
 //     // let t: Tree<f64> = Tree::new(&mut x[..]);
 
@@ -54,70 +54,52 @@
 //     }
 // }
 
-use std::{path::Path, fs::File, io::Write};
+use std::{fs::File, io::Write, path::Path};
 
-use idk::{LinearWell, KickStep, Integrator, forces::DampedSpring, no_explode};
+use idk::{forces::DampedSpring, no_explode, Integrator, LinearWell};
 use kdpoint::PhysicsPoint3D;
 use util::Vect3;
 
-use crate::{idk::{Setup, KickStepPQCollision}, util::radius_to_mass};
+use crate::{
+    idk::{KickStepPQCollision, Setup},
+    util::radius_to_mass,
+};
 
 mod idk;
 mod kdpoint;
 mod util;
 
 fn main() {
-
-    // test();
-    // return;
-
-    let c = Vect3::ZERO;
-
     const RHO: f64 = 0.88;
 
     let r = 1e-7;
     //let particles: Vec<PhysicsPoint3D> = (0..40).map(|_| PhysicsPoint3D::from_random_2d(c, 15. * r, 2. * r, radius_to_mass(r, RHO), r)).collect();
     let particles = vec![
         PhysicsPoint3D::new(10. * r, 1. * r, 0., 0., 0., 0., radius_to_mass(r, RHO), r),
-        PhysicsPoint3D::new(-10. * r, -1. * r, 0., 0., 0., 0., radius_to_mass(r, RHO), r)];
+        PhysicsPoint3D::new(-10. * r, -1. * r, 0., 0., 0., 0., radius_to_mass(r, RHO), r),
+    ];
 
     // mass / 2 cause reduced mass
-    let (b, k) = no_explode::compute::b_and_k(0.00016, radius_to_mass(r, RHO), r);
+    let (b, k) = no_explode::lewis::b_and_k(0.0001, radius_to_mass(r, RHO), r);
     println!("k = {:e}, b = {:e}", k, b);
 
     let k_force = DampedSpring::new(k, b); //b); //(1., 0.1);
 
-    let dt = 0.0001;
-    let mut setup = idk::Setup::new(
-        LinearWell::new(Vect3::ZERO, 1e-21), 
-        k_force, 
-        particles, 
-        dt);
+    let dt = 0.00001; // 0.0001
+    let mut setup = idk::Setup::new(LinearWell::new(Vect3::ZERO, 1e-21), k_force, particles, dt);
 
     let logger = {
-        let path = Path::new("pipe");
-        let display = path.display();
+        fn open_file(path: &str) -> File {
+            let path = Path::new(path);
+            match File::create(&path) {
+                Err(why) => panic!("couldn't create {}: {}", path.display(), why),
+                Ok(file) => file,
+            }
+        }
 
-        let mut file = match File::create(&path) {
-            Err(why) => panic!("couldn't create {}: {}", display, why),
-            Ok(file) => file,
-        };
-
-        let path2 = Path::new("angular.csv");
-        let display2 = path.display();
-
-        let path3 = Path::new("data.out");
-        let display3 = path3.display();
-
-        let mut file3 = match File::create(&path3) {
-            Err(why) => panic!("couldn't create {}: {}", display3, why),
-            Ok(file) => file,
-        };
-
-        let mut file2 = match File::create(&path2) {
-            Err(why) => panic!("couldn't create {}: {}", display2, why),
-            Ok(file) => file,
-        };
+        let mut file = open_file("pipe");
+        let mut file2 = open_file("angular.csv");
+        let mut file4 = open_file("full_data.csv");
 
         move |setup: &Setup<_, _>| {
             let p = setup.get_particles();
@@ -127,16 +109,37 @@ fn main() {
                 }
 
                 write!(file, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
-
             }
             writeln!(file, "").expect("");
 
-            let ang = setup.center_of_mass();
+            let ang = setup.angular_momentum();
             writeln!(file2, "{}, {}, {}", ang.x, ang.y, ang.z).unwrap();
 
             let p = setup.get_particles();
 
-            writeln!(file3, "{}, {}, {}, {}, {}, {}", p[0].pos.x, p[0].pos.y, p[0].pos.z, p[1].pos.x, p[1].pos.y, p[1].pos.z).unwrap();
+            write!(
+                file4,
+                "{}, {}, {}, {}, {}, {}, ",
+                p[0].pos.x, p[0].pos.y, p[0].pos.z, p[1].pos.x, p[1].pos.y, p[1].pos.z
+            )
+            .unwrap();
+
+            write!(
+                file4,
+                "{}, {}, {}, {}, {}, {}, ",
+                p[0].vel.x, p[0].vel.y, p[0].vel.z, p[1].vel.x, p[1].vel.y, p[1].vel.z
+            )
+            .unwrap();
+
+            writeln!(
+                file4,
+                "{}, {}, {}, {}",
+                setup.compute_energy(),
+                setup.compute_global_u(),
+                setup.compute_pairwise_u(),
+                setup.compute_ke()
+            )
+            .unwrap();
 
             // let vect = setup.angular_momentum();
             // println!("{}, {}, {}", vect.x, vect.y, vect.z);
@@ -146,68 +149,60 @@ fn main() {
     KickStepPQCollision::simulate(&mut setup, 1000., Some(logger));
 }
 
+// fn test() {
+//     const RHO: f64 = 0.88;
 
-fn test() {
-    const RHO: f64 = 0.88;
+//     let r = 1e-7;
+//     let particles: Vec<PhysicsPoint3D> = vec![
+//         PhysicsPoint3D::new(1.5e-7, 0., 0., 0., 0., 0., radius_to_mass(r, RHO), r),
+//         PhysicsPoint3D::new(-1.5e-7, 0., 0., 0., 0., 0., radius_to_mass(r, RHO), r),
+//     ];
 
-    let r = 1e-7;
-    let particles: Vec<PhysicsPoint3D> = vec![
-        PhysicsPoint3D::new(1.5e-7, 0., 0., 0., 0., 0., radius_to_mass(r, RHO), r),
-        PhysicsPoint3D::new(-1.5e-7, 0., 0., 0., 0., 0., radius_to_mass(r, RHO), r)
-    ];
+//     // mass / 2 cause reduced mass
 
-    // mass / 2 cause reduced mass
+//     // 0.0000008655284142600487
+//     // 2.3e-4
+//     // 0.00016
+//     let (b, k) = no_explode::compute::b_and_k(0.00016, radius_to_mass(r, RHO), r);
+//     println!("k = {:e}, b = {:e}", k, b);
 
-    // 0.0000008655284142600487
-    // 2.3e-4
-    // 0.00016
-    let (b, k) = no_explode::compute::b_and_k(0.00016, radius_to_mass(r, RHO), r);
-    println!("k = {:e}, b = {:e}", k, b);
+//     let k_force = DampedSpring::new(k, b); //(1., 0.1);
 
-    let k_force = DampedSpring::new(k, b); //(1., 0.1);
+//     // 0.0001 works with KickStepPQCollision, but not KickStep
+//     let dt = 0.0001; //0.0001;
+//     let mut setup = idk::Setup::new(LinearWell::new(Vect3::ZERO, 1e-21), k_force, particles, dt);
 
-    // 0.0001 works with KickStepPQCollision, but not KickStep
-    let dt = 0.0001; //0.0001;
-    let mut setup = idk::Setup::new(
-        LinearWell::new(Vect3::ZERO, 1e-21), 
-        k_force, 
-        particles, 
-        dt);
+//     let logger = {
+//         let path = Path::new("pipe");
+//         let display = path.display();
 
-    let logger = {
-        let path = Path::new("pipe");
-        let display = path.display();
+//         let mut file = match File::create(&path) {
+//             Err(why) => panic!("couldn't create {}: {}", display, why),
+//             Ok(file) => file,
+//         };
 
-        let mut file = match File::create(&path) {
-            Err(why) => panic!("couldn't create {}: {}", display, why),
-            Ok(file) => file,
-        };
+//         let mut file2 = match File::create("data.out") {
+//             Err(why) => panic!("couldn't create {}: {}", display, why),
+//             Ok(file) => file,
+//         };
 
-        let mut file2 = match File::create("data.out") {
-            Err(why) => panic!("couldn't create {}: {}", display, why),
-            Ok(file) => file,
-        };
+//         move |setup: &Setup<_, _>| {
+//             let p = setup.get_particles();
+//             for (i, elem) in p.iter().enumerate() {
+//                 if i > 0 {
+//                     write!(file, "|").expect("");
+//                     write!(file2, ",").unwrap();
+//                 }
 
-        move |setup: &Setup<_, _>| {
-            let p = setup.get_particles();
-            for (i, elem) in p.iter().enumerate() {
-                if i > 0 {
-                    write!(file, "|").expect("");
-                    write!(file2, ",").unwrap();
-                }
+//                 write!(file, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
+//                 write!(file2, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
+//             }
+//             writeln!(file, "").expect("");
+//             writeln!(file2, "").expect("");
+//         }
+//     };
 
-                write!(file, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
-                write!(file2, "{},{},{}", elem.pos.x, elem.pos.y, elem.pos.z).expect("");
-            }
-            writeln!(file, "").expect("");
-            writeln!(file2, "").expect("");
-        }
-    };
-
-    // 1000
-    //KickStep::simulate(&mut setup, 0.005, Some(logger));
-    KickStepPQCollision::simulate(&mut setup, 0.002, Some(logger));
-
-}
-
-
+//     // 1000
+//     //KickStep::simulate(&mut setup, 0.005, Some(logger));
+//     KickStepPQCollision::simulate(&mut setup, 0.002, Some(logger));
+// }

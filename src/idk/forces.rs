@@ -5,6 +5,7 @@ use crate::PhysicsPoint3D;
 pub trait GlobalForce {
     // a force just depedent on one particle, like a global field
     fn force(&self, p: &PhysicsPoint3D) -> Vect3;
+    fn potential(&self, p: &PhysicsPoint3D) -> f64;
 }
 
 pub trait PairwiseSymmetricForce {
@@ -37,6 +38,14 @@ impl GlobalForce for LinearWell {
         let dir = -(p.pos - self.center).norm();
         dir * self.coeff
     }
+
+    fn potential(&self, p: &PhysicsPoint3D) -> f64 {
+        // F = - coeff (x - center) / |x - center|
+        // F = - grad U
+        // coeff (x - center) / |x - center| = grad U
+        // U(x) = coeff |x - center|
+        self.coeff * (p.pos - self.center).mag()
+    }
 }
 
 /// A Damped Spring repulsion force between two particles
@@ -48,6 +57,22 @@ pub struct DampedSpring {
 impl DampedSpring {
     pub fn new(k: f64, b: f64) -> Self {
         Self { k, b }
+    }
+
+    pub fn potential(&self, p1: &PhysicsPoint3D, p2: &PhysicsPoint3D) -> f64 {
+        // F = -kx
+        // U = 1/2 kx^2
+
+        // x is distance between
+        let r = (p2.pos - p1.pos).mag();
+        let delta = r - (p1.r + p2.r);
+
+        if delta < 0. {
+            0.5 * self.k * delta * delta
+        }
+        else {
+            0.
+        }
     }
 }
 

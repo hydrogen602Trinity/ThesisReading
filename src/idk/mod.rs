@@ -1,5 +1,5 @@
 use crate::{kdpoint::PhysicsPoint3D, util::Vect3};
-use std::{iter::zip, cmp::Reverse};
+use std::{cmp::Reverse, iter::zip};
 
 pub mod forces;
 pub mod no_explode;
@@ -9,14 +9,16 @@ use priority_queue::PriorityQueue;
 
 use self::util::{Index, Time};
 
-
 // Integrators
 
 pub trait Integrator {
     fn step<F: GlobalForce, S: PairwiseSymmetricForce>(setup: &mut Setup<F, S>);
 
-    fn simulate<F, S, L>(setup: &mut Setup<F, S>, period: f64, mut logger: Option<L>) 
-        where F: GlobalForce, S: PairwiseSymmetricForce, L: FnMut(&Setup<F,S>) 
+    fn simulate<F, S, L>(setup: &mut Setup<F, S>, period: f64, mut logger: Option<L>)
+    where
+        F: GlobalForce,
+        S: PairwiseSymmetricForce,
+        L: FnMut(&Setup<F, S>),
     {
         let mut t = 0.;
 
@@ -31,8 +33,7 @@ pub trait Integrator {
                 log(setup);
             }
         }
-
-    } 
+    }
 }
 
 // kick-step
@@ -48,15 +49,14 @@ impl Integrator for KickStep {
         }
 
         //println!("x={}, vx={}", setup.sys.particles[0].pos.x, setup.sys.particles[0].vel.x);
-    
+
         // step -> integrate x
-    
+
         for p in &mut setup.sys.particles {
             p.pos += p.vel * setup.dt;
         }
     }
 }
-
 
 pub struct KickStepPQCollision();
 
@@ -77,7 +77,7 @@ impl Integrator for KickStepPQCollision {
 
         // find collisions
         for (i, ei) in setup.sys.particles.iter().enumerate() {
-            for (j, ej) in setup.sys.particles.iter().enumerate().skip(i+1) {
+            for (j, ej) in setup.sys.particles.iter().enumerate().skip(i + 1) {
                 let max_distance = ei.vel.mag() * setup.dt + ej.vel.mag() * setup.dt;
                 if (ei.pos - ej.pos).mag() - ei.r - ej.r < max_distance * 1.5 {
                     // could collide?
@@ -88,11 +88,10 @@ impl Integrator for KickStepPQCollision {
             }
         }
 
-        
         loop {
             let ((i, j), mut t): ((Index, Index), Time) = match pq.pop() {
                 Some((indices, time)) => (indices, time.into()),
-                None => break
+                None => break,
             };
 
             // if t is beyond the timestep, set it to the timestep
@@ -100,8 +99,7 @@ impl Integrator for KickStepPQCollision {
             let over_extends_end = if *t > setup.dt {
                 t = setup.dt.into();
                 true
-            }
-            else {
+            } else {
                 false
             };
 
@@ -109,9 +107,9 @@ impl Integrator for KickStepPQCollision {
             let (last_t_i, last_t_j) = (last_updated_rel[*i], last_updated_rel[*j]);
 
             // determine and integrate pairwise force
-            let (ai, aj) = setup.pairwise_force.acceleration(
-                &setup.sys.particles[*i], 
-                &setup.sys.particles[*j]);
+            let (ai, aj) = setup
+                .pairwise_force
+                .acceleration(&setup.sys.particles[*i], &setup.sys.particles[*j]);
 
             setup.sys.particles[*i].vel += ai * (*t - last_t_i);
             setup.sys.particles[*j].vel += aj * (*t - last_t_j);
@@ -140,18 +138,59 @@ impl Integrator for KickStepPQCollision {
     }
 }
 
-
 // System
 
 pub struct Setup<F: GlobalForce, S: PairwiseSymmetricForce> {
     global_force: F,
     pairwise_force: S,
     sys: System,
-    dt: f64
+    dt: f64,
+}
+
+impl<F: GlobalForce> Setup<F, DampedSpring> {
+    pub fn compute_energy(&self) -> f64 {
+        self.compute_global_u() + self.compute_pairwise_u() + self.compute_ke()
+    }
+
+    pub fn compute_global_u(&self) -> f64 {
+        self.sys
+            .particles
+            .iter()
+            .map(|p| self.global_force.potential(p))
+            .sum()
+    }
+
+    pub fn compute_pairwise_u(&self) -> f64 {
+        let mut spring_u = 0f64;
+        for i in 0..(self.sys.particles.len()) {
+            for j in (i + 1)..(self.sys.particles.len()) {
+                spring_u += self
+                    .pairwise_force
+                    .potential(&self.sys.particles[i], &self.sys.particles[j]);
+            }
+        }
+        spring_u
+    }
+
+    pub fn compute_ke(&self) -> f64 {
+        self.sys.particles.iter().map(|p| p.kinetic_energy()).sum()
+    }
 }
 
 impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
-    pub fn new(global_force: F, pairwise_force: S, particles: Vec<PhysicsPoint3D>, dt: f64) -> Self { Setup { global_force, pairwise_force, sys: System::new(particles), dt } }
+    pub fn new(
+        global_force: F,
+        pairwise_force: S,
+        particles: Vec<PhysicsPoint3D>,
+        dt: f64,
+    ) -> Self {
+        Setup {
+            global_force,
+            pairwise_force,
+            sys: System::new(particles),
+            dt,
+        }
+    }
 
     pub fn get_particles(&self) -> &Vec<PhysicsPoint3D> {
         &self.sys.particles
@@ -159,21 +198,30 @@ impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
 }
 
 impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
-
     /// For forces that don't depend on other particles/ won't change much
     fn compute_global_acceleration(&self) -> Vec<Vect3> {
-        self.sys.particles.iter().map(|p| self.global_force.force(p) / p.m).collect()
+        self.sys
+            .particles
+            .iter()
+            .map(|p| self.global_force.force(p) / p.m)
+            .collect()
     }
 
     fn compute_accelerations(&self) -> Vec<Vect3> {
         // global forces
-        let mut acc: Vec<Vect3> = self.sys.particles.iter().map(|p| self.global_force.force(p) / p.m).collect();
+        let mut acc: Vec<Vect3> = self
+            .sys
+            .particles
+            .iter()
+            .map(|p| self.global_force.force(p) / p.m)
+            .collect();
         // println!("{:?}", acc);
 
         for i in 0..(self.sys.particles.len()) {
-            for j in (i+1)..(self.sys.particles.len()) {
-
-                let (ai, aj) = self.pairwise_force.acceleration(&self.sys.particles[i], &self.sys.particles[j]);
+            for j in (i + 1)..(self.sys.particles.len()) {
+                let (ai, aj) = self
+                    .pairwise_force
+                    .acceleration(&self.sys.particles[i], &self.sys.particles[j]);
 
                 acc[i] += ai;
                 acc[j] += aj;
@@ -184,26 +232,36 @@ impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
     }
 
     pub fn center_of_mass(&self) -> Vect3 {
-        self.sys.particles.iter().map(|p| p.pos).fold(Vect3::ZERO, |a,b| a + b) / self.sys.particles.len() as f64
+        self.sys
+            .particles
+            .iter()
+            .map(|p| p.pos)
+            .fold(Vect3::ZERO, |a, b| a + b)
+            / self.sys.particles.len() as f64
     }
 
     pub fn angular_momentum(&self) -> Vect3 {
         // L = r x p
-        // p = m v 
+        // p = m v
         // => L = r x m v
 
         let com = self.center_of_mass();
 
-        let L = self.sys.particles.iter().map(|p| (p.pos - com).cross(&(p.vel * p.m)));
+        let L = self
+            .sys
+            .particles
+            .iter()
+            .map(|p| (p.pos - com).cross(&(p.vel * p.m)));
         L.fold(Vect3::ZERO, |a, b| a + b)
     }
 }
 
 struct System {
-    particles: Vec<PhysicsPoint3D>
+    particles: Vec<PhysicsPoint3D>,
 }
 
 impl System {
-    pub fn new(particles: Vec<PhysicsPoint3D>) -> Self { System { particles } }
+    pub fn new(particles: Vec<PhysicsPoint3D>) -> Self {
+        System { particles }
+    }
 }
-
