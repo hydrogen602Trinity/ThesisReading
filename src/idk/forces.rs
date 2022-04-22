@@ -18,6 +18,30 @@ pub trait PairwiseSymmetricForce {
     }
 }
 
+// A force that is null
+pub struct NullForce();
+
+impl Default for NullForce {
+    fn default() -> Self {
+        Self()
+    }
+}
+
+impl GlobalForce for NullForce {
+    fn potential(&self, _: &PhysicsPoint3D) -> f64 {
+        0.
+    }
+
+    fn force(&self, _: &PhysicsPoint3D) -> Vect3 {
+        Vect3::ZERO
+    }
+}
+
+impl PairwiseSymmetricForce for NullForce {
+    fn acceleration(&self, _: &PhysicsPoint3D, _: &PhysicsPoint3D) -> (Vect3, Vect3) {
+        (Vect3::ZERO, Vect3::ZERO)
+    }
+}
 
 /// A well with a linear slope to its center
 /// U(r) = ar for r > 0
@@ -25,7 +49,10 @@ pub trait PairwiseSymmetricForce {
 /// r = |r_vect - center|
 /// dimensional analysis [Force] = -a * r hat => a = [Force] = N
 /// so coeff is Force
-pub struct LinearWell { center: Vect3, coeff: f64 }
+pub struct LinearWell {
+    center: Vect3,
+    coeff: f64,
+}
 
 impl LinearWell {
     pub fn new(center: Vect3, coeff: f64) -> Self {
@@ -51,7 +78,7 @@ impl GlobalForce for LinearWell {
 /// A Damped Spring repulsion force between two particles
 pub struct DampedSpring {
     k: f64,
-    b: f64
+    b: f64,
 }
 
 impl DampedSpring {
@@ -69,16 +96,18 @@ impl DampedSpring {
 
         if delta < 0. {
             0.5 * self.k * delta * delta
-        }
-        else {
+        } else {
             0.
         }
     }
 }
 
 impl PairwiseSymmetricForce for DampedSpring {
-
-    fn acceleration(&self, p: &crate::kdpoint::PhysicsPoint3D, other: &crate::kdpoint::PhysicsPoint3D) -> (Vect3, Vect3) {
+    fn acceleration(
+        &self,
+        p: &crate::kdpoint::PhysicsPoint3D,
+        other: &crate::kdpoint::PhysicsPoint3D,
+    ) -> (Vect3, Vect3) {
         let rji = other.pos - p.pos; // relative pos
         let vji = other.vel - p.vel; // relative vel
 
@@ -102,8 +131,7 @@ impl PairwiseSymmetricForce for DampedSpring {
             let aj = f_total / other.m;
 
             (ai, aj)
-        }
-        else {
+        } else {
             (Vect3::ZERO, Vect3::ZERO)
         }
     }

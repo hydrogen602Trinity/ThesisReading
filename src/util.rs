@@ -1,11 +1,33 @@
-use std::ops::{Add, Div, Mul, Sub, Neg, AddAssign, SubAssign};
-
+use core::fmt;
+use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Vect3 {
     pub x: f64,
     pub y: f64,
-    pub z: f64
+    pub z: f64,
+}
+
+impl Default for Vect3 {
+    fn default() -> Self {
+        Vect3::ZERO
+    }
+}
+
+impl fmt::Display for Vect3 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<{}, {}, {}>", self.x, self.y, self.z)
+    }
+}
+
+impl From<(f64, f64, f64)> for Vect3 {
+    fn from(d: (f64, f64, f64)) -> Self {
+        Vect3 {
+            x: d.0,
+            y: d.1,
+            z: d.2,
+        }
+    }
 }
 
 impl Vect3 {
@@ -28,10 +50,10 @@ impl Vect3 {
     pub fn cross(&self, other: &Self) -> Vect3 {
         // [ a2 b3 - a3 b2 , a3 b1 - a1 b3 , a1 b2 - a2 b1 ]
 
-        Vect3::new( 
+        Vect3::new(
             self.y * other.z - self.z * other.y,
             self.z * other.x - self.x * other.z,
-            self.x * other.y - self.y * other.x
+            self.x * other.y - self.y * other.x,
         )
     }
 
@@ -43,9 +65,12 @@ impl Vect3 {
         println!("<{:.2e} {:.2e} {:.2e}>", self.x, self.y, self.z);
     }
 
-    pub const ZERO: Vect3 = Vect3 { x: 0., y: 0., z: 0. };
+    pub const ZERO: Vect3 = Vect3 {
+        x: 0.,
+        y: 0.,
+        z: 0.,
+    };
 }
-
 
 // #[macro_export]
 macro_rules! helper {
@@ -57,7 +82,7 @@ macro_rules! helper {
                 self.z += rhs.z;
             }
         }
-        
+
         impl SubAssign<$type> for Vect3 {
             fn sub_assign(&mut self, rhs: $type) {
                 self.x -= rhs.x;
@@ -68,15 +93,15 @@ macro_rules! helper {
 
         impl Div<f64> for $type {
             type Output = Vect3;
-        
+
             fn div(self, scalar: f64) -> Self::Output {
                 Vect3::new(self.x / scalar, self.y / scalar, self.z / scalar)
             }
         }
-        
+
         impl Mul<f64> for $type {
             type Output = Vect3;
-        
+
             fn mul(self, scalar: f64) -> Self::Output {
                 Vect3::new(self.x * scalar, self.y * scalar, self.z * scalar)
             }
@@ -84,7 +109,7 @@ macro_rules! helper {
 
         impl Neg for $type {
             type Output = Vect3;
-        
+
             fn neg(self) -> Self::Output {
                 Vect3::new(-self.x, -self.y, -self.z)
             }
@@ -93,7 +118,7 @@ macro_rules! helper {
     ( $type:ty, $type2:ty ) => {
         impl Add<$type2> for $type {
             type Output = Vect3;
-        
+
             fn add(self, other: $type2) -> Self::Output {
                 Vect3::new(self.x + other.x, self.y + other.y, self.z + other.z)
             }
@@ -101,7 +126,7 @@ macro_rules! helper {
 
         impl Mul<$type2> for $type {
             type Output = f64;
-        
+
             fn mul(self, other: $type2) -> f64 {
                 self.x * other.x + self.y * other.y + self.z * other.z
             }
@@ -109,7 +134,7 @@ macro_rules! helper {
 
         impl Sub<$type2> for $type {
             type Output = Vect3;
-        
+
             fn sub(self, other: $type2) -> Self::Output {
                 Vect3::new(self.x - other.x, self.y - other.y, self.z - other.z)
             }
@@ -124,7 +149,6 @@ helper!(&Vect3, &Vect3);
 helper!(Vect3);
 helper!(&Vect3);
 
-
 pub fn radius_to_mass(r: f64, rho: f64) -> f64 {
-    rho * r * r * r * 4./3. * std::f64::consts::PI
+    rho * r * r * r * 4. / 3. * std::f64::consts::PI
 }
