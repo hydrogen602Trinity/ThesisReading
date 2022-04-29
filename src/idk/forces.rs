@@ -1,5 +1,5 @@
 // Forces
-use crate::util::Vect3;
+use crate::vect3::Vect3;
 use crate::PhysicsPoint3D;
 
 pub trait GlobalForce {

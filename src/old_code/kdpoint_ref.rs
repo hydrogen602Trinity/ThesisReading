@@ -2,11 +2,9 @@ use crate::kdpoint::*;
 use crate::kdtree::Tree;
 use crate::util::Vect3;
 
-
 pub static mut system: Vec<PhysicsPoint3D> = Vec::new();
 // pub const system: Vec<PhysicsPoint3D> = Vec::new();
-// static mut systemState: Mutex<Vec<PhysicsPoint3D>> = Mutex::new(Vec::new()); //: Box<Vec<PhysicsPoint3D>> = 
-
+// static mut systemState: Mutex<Vec<PhysicsPoint3D>> = Mutex::new(Vec::new()); //: Box<Vec<PhysicsPoint3D>> =
 
 fn create_index(sys: &Vec<PhysicsPoint3D>) -> Vec<i32> {
     let mut v = Vec::new();
@@ -29,72 +27,43 @@ pub fn print_sys(sys: &Vec<PhysicsPoint3D>) {
     }
 }
 
-// fn index(i: &i32) -> &PhysicsPoint3D {
-//     if i < &0 {
-//         &PhysicsPoint3D::ZERO
-//     }
-//     else {
-//         // &system[*i as usize]
-//         // &system[*i as usize]
-//         let x = system.get(*i as usize).unwrap();
-//         x
-//         // system.get(*i as usize).unwrap()
-//     }
-// }
-
-// pub fn build_tree() -> Tree<i32> {
-//     let r = 0..system.len();
-//     //Tree::new(r)
-
-// }
-
 fn index(i: &i32) -> PhysicsPoint3D {
     if i < &0 {
         PhysicsPoint3D::ZERO
-    }
-    else {
-        unsafe {
-            system[*i as usize]
-        }
+    } else {
+        unsafe { system[*i as usize] }
     }
 }
 
 fn pos(i: &i32) -> Vect3 {
     if i < &0 {
         PhysicsPoint3D::ZERO.pos
-    }
-    else {
-        unsafe {
-            system[*i as usize].pos
-        }
+    } else {
+        unsafe { system[*i as usize].pos }
     }
 }
 
 impl KDPoint for i32 {
     fn get_point(&self) -> Vect3 {
-        unsafe {
-            system[*self as usize].pos
-        }
+        unsafe { system[*self as usize].pos }
     }
 
     fn spread_in_dim(data: &[Self], dim: &Dimensions) -> f64 {
-
-
         let selector: fn(&i32) -> f64 = match dim {
-            Dimensions::X => {
-                |pt| pos(pt).x
-            },
-            Dimensions::Y => {
-                |pt| pos(pt).y
-            },
-            Dimensions::Z => {
-                |pt| pos(pt).z
-            },
-            _ => panic!("This Tree is 3D")
+            Dimensions::X => |pt| pos(pt).x,
+            Dimensions::Y => |pt| pos(pt).y,
+            Dimensions::Z => |pt| pos(pt).z,
+            _ => panic!("This Tree is 3D"),
         };
 
-        let min = data.iter().map(selector).fold(f64::INFINITY, |a, b| if a < b { a } else { b });
-        let max = data.iter().map(selector).fold(f64::NEG_INFINITY, |a, b| if a > b { a } else { b });
+        let min = data
+            .iter()
+            .map(selector)
+            .fold(f64::INFINITY, |a, b| if a < b { a } else { b });
+        let max = data
+            .iter()
+            .map(selector)
+            .fold(f64::NEG_INFINITY, |a, b| if a > b { a } else { b });
         max - min
     }
 
@@ -105,16 +74,14 @@ impl KDPoint for i32 {
             Dimensions::X => (self_data.x, other_data.x),
             Dimensions::Y => (self_data.y, other_data.y),
             Dimensions::Z => (self_data.z, other_data.z),
-            _ => panic!("This Tree is 3D")
+            _ => panic!("This Tree is 3D"),
         };
 
         if s < o {
             std::cmp::Ordering::Less
-        }
-        else if s > o {
+        } else if s > o {
             std::cmp::Ordering::Greater
-        }
-        else {
+        } else {
             std::cmp::Ordering::Equal
         }
     }
@@ -125,7 +92,7 @@ impl KDPoint for i32 {
             Dimensions::X => pos_data.x,
             Dimensions::Y => pos_data.y,
             Dimensions::Z => pos_data.z,
-            _ => panic!("This Tree is 3D")
+            _ => panic!("This Tree is 3D"),
         }
     }
 
@@ -140,7 +107,10 @@ impl KDPoint for i32 {
 
     fn print(&self) {
         let data = index(self);
-        print!("<{:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2}>", data.pos.x, data.pos.y, data.pos.z, data.vel.x, data.vel.y, data.vel.z);
+        print!(
+            "<{:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2} {:0>5.2}>",
+            data.pos.x, data.pos.y, data.pos.z, data.vel.x, data.vel.y, data.vel.z
+        );
     }
 
     const ZERO: Self = -1;
@@ -159,7 +129,7 @@ impl KDPoint for i32 {
 
     fn compute_acceleration_from_node(&self, other: &crate::kdtree::Node<Self>) -> Vect3 {
         const G: f64 = 1.;
-        
+
         let self_pt = index(self);
         let r = self_pt.pos - other.com;
         // let r = (sq(self.x - other.x) + sq(self.y - other.y) + sq(self.z - other.z)).sqrt();
@@ -185,8 +155,7 @@ impl KDPoint for i32 {
         if self_pt.pos == other_pt.pos {
             // if a bunch of doubles are exactly the same, then self is other
             Vect3::ZERO // particles are not attracted to themselves
-        }
-        else {
+        } else {
             let r = self_pt.pos - other_pt.pos;
             // let r = (sq(self.x - other.x) + sq(self.y - other.y) + sq(self.z - other.z)).sqrt();
 

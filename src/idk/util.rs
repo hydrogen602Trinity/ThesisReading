@@ -44,8 +44,6 @@ impl Ord for Time {
     }
 }
 
-
-
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Index(usize);
 
@@ -68,13 +66,5 @@ impl From<Index> for usize {
         i.0
     }
 }
-
-// impl Deref for Index {
-//     type Target = usize;
-
-//     fn deref(&self) -> &Self::Target {
-//         &self.0
-//     }
-// }
 
 use std::{cmp::Reverse, ops::Deref};

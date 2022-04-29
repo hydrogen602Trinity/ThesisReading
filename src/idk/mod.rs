@@ -1,4 +1,4 @@
-use crate::{kdpoint::PhysicsPoint3D, util::Vect3};
+use crate::{kdpoint::PhysicsPoint3D, vect3::Vect3};
 use std::{cmp::Reverse, iter::zip};
 
 pub mod forces;
@@ -247,12 +247,12 @@ impl<F: GlobalForce, S: PairwiseSymmetricForce> Setup<F, S> {
 
         let com = self.center_of_mass();
 
-        let L = self
+        let l = self
             .sys
             .particles
             .iter()
             .map(|p| (p.pos - com).cross(&(p.vel * p.m)));
-        L.fold(Vect3::ZERO, |a, b| a + b)
+        l.fold(Vect3::ZERO, |a, b| a + b)
     }
 }
 
