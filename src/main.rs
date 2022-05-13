@@ -118,6 +118,72 @@ mod tests {
 
         let t = ((10. * R - R) / R).abs(); // since it collides when x = r (nonzero radius), subtract that one
 
+        let (_b, k) = no_explode::compute::b_and_k(R, radius_to_mass(R, RHO), R);
+
+        let k_force = DampedSpring::new(k, 0.); // energy should be preserved
+
+        let dt = 0.0001; // 0.0001
+        let mut setup = idk::Setup::new(forces::NullForce::default(), k_force, particles, dt);
+
+        let pre_setup = PreTestState::new(&setup);
+
+        assert_eq!(
+            setup.center_of_mass(),
+            Vect3::ZERO,
+            "COM is nonzero, but system is symmetric"
+        );
+        assert_eq!(
+            setup.angular_momentum(),
+            Vect3::ZERO,
+            "Angular momentum should be zero"
+        );
+
+        KickStepPQCollision::simulate(&mut setup, t, None::<fn(&_)>);
+
+        assert_eq!(setup.center_of_mass(), Vect3::ZERO, "COM moved");
+        assert_eq!(
+            setup.angular_momentum(),
+            Vect3::ZERO,
+            "Angular momentum changed"
+        );
+
+        assert_eq!(
+            pre_setup.particle_cmp(
+                |pre, post| {
+                    assert_eq!(post.pos.y, 0., "Drifted off x-axis");
+                    assert_eq!(post.pos.z, 0., "Drifted off x-axis");
+                    assert!(
+                        pre.pos.x * post.pos.x > 0.,
+                        "Particles went through each other"
+                    );
+                    assert!(
+                        pre.vel * post.vel < 0.,
+                        "Particle did not switch direction, {} -> {}",
+                        pre.vel,
+                        post.vel
+                    );
+                },
+                &setup
+            ),
+            2
+        );
+
+        let post_e = setup.compute_energy();
+        ApproxEq::assert_approx_eq(&pre_setup.energy, &post_e, 0.001);
+    }
+
+    fn test_off_x_axis() {
+        //let particles: Vec<PhysicsPoint3D> = (0..40).map(|_| PhysicsPoint3D::from_random_2d(c, 15. * r, 2. * r, radius_to_mass(r, RHO), r)).collect();
+        let particles = vec![
+            PhysicsPoint3D::new(10. * R, 0.5 * R, 0., -R, 0., 0., radius_to_mass(R, RHO), R),
+            PhysicsPoint3D::new(-10. * R, -0.5 * R, 0., R, 0., 0., radius_to_mass(R, RHO), R),
+        ];
+
+        // x = v * t
+        // x / v = t
+
+        let t = ((10. * R) / R).abs();
+
         let (_b, k) = no_explode::compute::b_and_k(0.0001, radius_to_mass(R, RHO), R);
 
         let k_force = DampedSpring::new(k, 0.); // energy should be preserved
